@@ -1,0 +1,147 @@
+.document {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+    height: 100vh;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+.toolbar {
+    display: flex;
+    align-items: center;
+    padding: 3px;
+    border-bottom: 1px solid #CCC;
+}
+
+.toolbar button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    padding: 0.5rem;
+    border-radius: 5px;
+    margin: 0 3px;
+}
+
+.toolbar button:hover {
+    background-color: rgba(0, 0, 0, .1);
+}
+
+.toolbar input::-webkit-outer-spin-button,
+.toolbar input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.toolbar input {
+    text-align: right;
+    width: 5rem;
+    margin: 0 3px;
+}
+
+.workarea {
+    display: grid;
+    grid-template-columns: 0 1fr;
+    grid-template-rows: 1fr;
+    position: relative;
+    min-height: 0;
+    transition: .25s ease-in-out
+}
+
+.workarea.sidebarVisible {
+    transform: translateX(0);
+    grid-template-columns: 380px 1fr;
+}
+
+.workarea .sidebar {
+    width: 380px;
+    height: 100%;
+    overflow-y: auto;
+    background-color: #f6f8fa;
+    transform: translateX(-100%);
+}
+
+.workarea.sidebarVisible .sidebar {
+    transform: translateX(0);
+}
+
+.workarea .sidebar {
+    transition: transform .25s ease-in-out;
+}
+
+.workarea .sidebar .thumbnailContainer {
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem;
+}
+
+.workarea .sidebar .thumbnailContainer .thumbnail {
+    position: relative;
+
+    box-shadow:
+        0 1.5px 2px rgba(43, 46, 54, .15),
+        0 3px 6px rgba(43, 46, 54, .15);
+
+    margin-bottom: 1rem;
+}
+
+.workarea .sidebar .thumbnailContainer:hover .thumbnail:before {
+    content: " ";
+    position: absolute;
+    top: -0.75rem;
+    left: -0.75rem;
+    width: 100%;
+    height: 100%;
+    border: 0.75rem solid rgba(0, 0, 0, .1);
+    border-radius: 3px;
+}
+
+
+.workarea .sidebar .thumbnailContainer.active .thumbnail:before {
+    content: " ";
+    position: absolute;
+    top: -0.75rem;
+    left: -0.75rem;
+    width: 100%;
+    height: 100%;
+    border: 0.75rem solid rgba(0, 0, 0, .2);
+    border-radius: 3px;
+}
+
+.workarea .sidebar .thumbnailContainer .pageNumber {
+    background: rgba(0, 0, 0, .1);
+    padding: 0.25rem 1rem;
+    border-radius: 5px;
+}
+
+.workarea .sidebar .thumbnailContainer:hover .pageNumber {
+    background: rgba(0, 0, 0, .2);
+    padding: 0.25rem 1rem;
+    border-radius: 5px;
+}
+
+.workarea .sidebar .thumbnailContainer.active .pageNumber {
+    background: rgba(0, 0, 0, .2);
+    padding: 0.25rem 1rem;
+    border-radius: 5px;
+}
+
+.workarea .viewport {
+    grid-column: 2;
+    flex-grow: 1;
+    background-color: #f6f8fa;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.page {
+    box-shadow: 3px 3px 8px rgba(0, 0, 0, .1);
+}
+
+.page canvas {
+    background-color: white;
+}
