@@ -90,7 +90,7 @@ function ScaleSelector(props: ScaleSelectorProps) {
 			case "page-fit": // Not correct, neeed PDF-dimensions to set accurately
 				return props.onChange({
 					...ScaleOptions[value].props,
-					width: viewportSize.width,
+					height: viewportSize.height,
 				});
 
 			case "page-width":
