@@ -58,6 +58,7 @@
     overflow-y: auto;
     background-color: #f6f8fa;
     transform: translateX(-100%);
+    scroll-behavior: smooth;
 }
 
 .workarea.sidebarVisible .sidebar {

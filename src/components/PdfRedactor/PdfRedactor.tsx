@@ -52,6 +52,8 @@ function PdfRedactor(props: PdfRedactorProps) {
 	const [numPages, setNumPages] = useState<number>();
 	const [pageNumber, setPageNumber] = useState<number>();
 
+	const sidebar = useRef<HTMLDivElement>(null);
+
 	const viewport = useRef<HTMLDivElement>(null);
 	const currentViewport = viewport.current;
 
@@ -70,12 +72,42 @@ function PdfRedactor(props: PdfRedactorProps) {
 		};
 	}, [currentViewport]);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+	useEffect(() => {
+		if (pageNumber === undefined || sidebarVisible === false) {
+			return;
+		}
+
+		const thumbnail = thumbnailElementRefs[pageNumber - 1].current;
+		if (thumbnail === null || sidebar.current === null) {
+			return;
+		}
+
+		if (
+			!(
+				thumbnail.offsetTop - sidebar.current.scrollTop >= 0 &&
+				thumbnail.offsetTop +
+					thumbnail.offsetHeight -
+					sidebar.current.scrollTop <=
+					sidebar.current.clientHeight
+			)
+		) {
+			thumbnail.scrollIntoView();
+		}
+	}, [pageNumber]);
+
 	const pageProxyObjects: Array<PDFPageProxy | undefined> = useMemo(
 		() => Array.from({ length: numPages ?? 0 }, (_) => undefined),
 		[numPages],
 	);
 
 	const pageElementRefs: RefObject<HTMLDivElement>[] = useMemo(
+		() =>
+			Array.from({ length: numPages ?? 0 }, (_) => createRef<HTMLDivElement>()),
+		[numPages],
+	);
+
+	const thumbnailElementRefs: RefObject<HTMLDivElement>[] = useMemo(
 		() =>
 			Array.from({ length: numPages ?? 0 }, (_) => createRef<HTMLDivElement>()),
 		[numPages],
@@ -112,13 +144,10 @@ function PdfRedactor(props: PdfRedactorProps) {
 		[goToPage],
 	);
 
-	const onDocumentLoadSuccess = useCallback(
-		(pdfDocument: PDFDocumentProxy) => {
-			setNumPages(pdfDocument.numPages);
-			setPageNumber(1);
-		},
-		[],
-	);
+	const onDocumentLoadSuccess = useCallback((pdfDocument: PDFDocumentProxy) => {
+		setNumPages(pdfDocument.numPages);
+		setPageNumber(1);
+	}, []);
 
 	const onPageLoadSuccess = useCallback(
 		(pdfPage: PDFPageProxy) => {
@@ -237,7 +266,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 						sidebarVisible && styles.sidebarVisible,
 					)}
 				>
-					<aside className={styles.sidebar}>
+					<aside className={styles.sidebar} ref={sidebar}>
 						{Array.from(new Array(numPages), (_, index) => (
 							<div
 								key={`thumbnail_${index + 1}`}
@@ -245,6 +274,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 									styles.thumbnailContainer,
 									index + 1 === pageNumber && styles.active,
 								)}
+								ref={thumbnailElementRefs[index]}
 							>
 								<Thumbnail
 									pageNumber={index + 1}
