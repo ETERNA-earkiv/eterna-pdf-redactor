@@ -1,4 +1,12 @@
-import { ChangeEvent, useCallback, useRef, useState } from "react";
+import {
+	ChangeEvent,
+	RefObject,
+	createRef,
+	useCallback,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { Document, Page, Outline, Thumbnail, pdfjs } from "react-pdf";
 import { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 
@@ -36,6 +44,17 @@ function PdfRedactor(props: PdfRedactorProps) {
 	const [numPages, setNumPages] = useState<number>();
 	const [pageNumber, setPageNumber] = useState<number>();
 
+	const pageProxyObjects: Array<PDFPageProxy | undefined> = useMemo(
+		() => Array.from({ length: numPages ?? 0 }, (_) => undefined),
+		[numPages],
+	);
+
+	const pageElementRefs: RefObject<HTMLDivElement>[] = useMemo(
+		() =>
+			Array.from({ length: numPages ?? 0 }, (_) => createRef<HTMLDivElement>()),
+		[numPages],
+	);
+
 	const [pageScaleOptions, setPageScaleOptions] =
 		useState<ScaleOptionProperties>({
 			scale: 1,
@@ -53,14 +72,32 @@ function PdfRedactor(props: PdfRedactorProps) {
 		[],
 	);
 
-	const onItemClick = useCallback((args: { pageNumber: number }) => {
-		setPageNumber(args.pageNumber);
-	}, []);
+	const goToPage = useCallback(
+		(pageNumber: number) => {
+			pageElementRefs[pageNumber - 1].current?.scrollIntoView();
+			setPageNumber(pageNumber);
+		},
+		[pageElementRefs],
+	);
+
+	const onItemClick = useCallback(
+		(args: { pageNumber: number }) => {
+			goToPage(args.pageNumber);
+		},
+		[goToPage],
+	);
 
 	const onDocumentLoadSuccess = useCallback((pdfDocument: PDFDocumentProxy) => {
 		setNumPages(pdfDocument.numPages);
 		setPageNumber(1);
 	}, []);
+
+	const onPageLoadSuccess = useCallback(
+		(pdfPage: PDFPageProxy) => {
+			pageProxyObjects[pdfPage._pageIndex] = pdfPage;
+		},
+		[pageProxyObjects],
+	);
 
 	const toggleSidebar = () => {
 		setSidebarVisible(!sidebarVisible);
@@ -72,7 +109,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 		}
 
 		if (pageNumber > 1) {
-			setPageNumber(pageNumber - 1);
+			goToPage(pageNumber - 1);
 		}
 	};
 
@@ -82,7 +119,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 		}
 
 		if (pageNumber < numPages) {
-			setPageNumber(pageNumber + 1);
+			goToPage(pageNumber + 1);
 		}
 	};
 
@@ -101,7 +138,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 					<ToolbarItem.NextPage onClick={goToNextPage} />
 					<ToolbarItem.PageSelector
 						onChange={(e: ChangeEvent<HTMLInputElement>) =>
-							setPageNumber(parseInt(e.target.value, 10))
+							goToPage(parseInt(e.target.value, 10))
 						}
 						pageNumber={pageNumber}
 						numPages={numPages}
@@ -151,11 +188,8 @@ function PdfRedactor(props: PdfRedactorProps) {
 									key={`page_${index + 1}`}
 									className={styles.page}
 									pageNumber={index + 1}
-									inputRef={
-										pageNumber === index + 1
-											? (ref) => ref?.scrollIntoView()
-											: null
-									}
+									onLoadSuccess={onPageLoadSuccess}
+									inputRef={pageElementRefs[index]}
 									{...pageScaleOptions}
 								/>
 							))}
