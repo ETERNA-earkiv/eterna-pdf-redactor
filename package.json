@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@react-hook/resize-observer": "^1.2.6",
     "clsx": "^2.0.0",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "3.11.174",

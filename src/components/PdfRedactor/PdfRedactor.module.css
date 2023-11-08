@@ -28,16 +28,14 @@
     background-color: rgba(0, 0, 0, .1);
 }
 
-.toolbar input::-webkit-outer-spin-button,
-.toolbar input::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-
 .toolbar input {
     text-align: right;
     width: 5rem;
     margin: 0 3px;
+}
+
+.toolbar .spacer {
+    flex-grow: 1;
 }
 
 .workarea {
@@ -133,15 +131,20 @@
     grid-column: 2;
     flex-grow: 1;
     background-color: #f6f8fa;
+    overflow-y: auto;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+}
+
+.workarea .viewport .pagePosition {
+    min-height: 100%;
     display: flex;
-    justify-content: center;
-    align-items: center;
+    flex-direction: column;
+    margin: 2rem 0;
+    gap: 2rem;
 }
 
 .page {
+    margin: 0 auto;
     box-shadow: 3px 3px 8px rgba(0, 0, 0, .1);
-}
-
-.page canvas {
-    background-color: white;
 }

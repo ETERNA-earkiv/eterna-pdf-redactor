@@ -1,9 +1,11 @@
-import { ChangeEvent, useCallback, useState } from "react";
+import { ChangeEvent, useCallback, useRef, useState } from "react";
 import { Document, Page, Outline, Thumbnail, pdfjs } from "react-pdf";
 import { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
-import { IconContext } from "react-icons";
-import { FiSidebar, FiChevronUp, FiChevronDown } from "react-icons/fi";
+
 import clsx from "clsx";
+
+import Toolbar from "./Toolbar/Toolbar";
+import * as ToolbarItem from "./Toolbar/ToolbarItems";
 
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
@@ -23,10 +25,25 @@ type PdfRedactorProps = {
 	document: File;
 };
 
+type ScaleOptionProperties = {
+	scale: number | undefined;
+	width: number | undefined;
+	height: number | undefined;
+};
+
 function PdfRedactor(props: PdfRedactorProps) {
 	const [sidebarVisible, setSidebarVisible] = useState<boolean>(false);
 	const [numPages, setNumPages] = useState<number>();
 	const [pageNumber, setPageNumber] = useState<number>();
+
+	const [pageScaleOptions, setPageScaleOptions] =
+		useState<ScaleOptionProperties>({
+			scale: 1,
+			width: undefined,
+			height: undefined,
+		});
+
+	const viewport = useRef<HTMLDivElement>(null);
 
 	const onPageClick = useCallback(
 		(
@@ -78,29 +95,24 @@ function PdfRedactor(props: PdfRedactorProps) {
 				onItemClick={onItemClick}
 				onLoadSuccess={onDocumentLoadSuccess}
 			>
-				<div className={styles.toolbar}>
-					<IconContext.Provider value={{ className: styles.icon, size: "18" }}>
-						<button type="button" onClick={toggleSidebar}>
-							<FiSidebar />
-						</button>
-						<button type="button" onClick={goToPrevPage}>
-							<FiChevronUp />
-						</button>
-						<button type="button" onClick={goToNextPage}>
-							<FiChevronDown />
-						</button>
-						<input
-							type="text"
-							value={pageNumber || 0}
-							inputMode="numeric"
-							pattern="d*"
-							onChange={(e: ChangeEvent<HTMLInputElement>) =>
-								setPageNumber(parseInt(e.target.value, 10))
-							}
-						/>
-						<span>av {numPages}</span>
-					</IconContext.Provider>
-				</div>
+				<Toolbar className={styles.toolbar} iconSize="18">
+					<ToolbarItem.SidebarToggle onClick={toggleSidebar} />
+					<ToolbarItem.PreviousPage onClick={goToPrevPage} />
+					<ToolbarItem.NextPage onClick={goToNextPage} />
+					<ToolbarItem.PageSelector
+						onChange={(e: ChangeEvent<HTMLInputElement>) =>
+							setPageNumber(parseInt(e.target.value, 10))
+						}
+						pageNumber={pageNumber}
+						numPages={numPages}
+					/>
+					<ToolbarItem.Spacer />
+					<ToolbarItem.ScaleSelector
+						viewport={viewport}
+						onChange={(scale) => setPageScaleOptions(scale)}
+					/>
+					<ToolbarItem.Spacer />
+				</Toolbar>
 				<div
 					className={clsx(
 						styles.workarea,
@@ -132,8 +144,22 @@ function PdfRedactor(props: PdfRedactorProps) {
 						))}
 					</aside>
 					{/*<Outline className="test" />*/}
-					<div className={styles.viewport}>
-						<Page className={styles.page} pageNumber={pageNumber} />
+					<div ref={viewport} className={styles.viewport}>
+						<div className={styles.pagePosition}>
+							{Array.from(new Array(numPages), (_, index) => (
+								<Page
+									key={`page_${index + 1}`}
+									className={styles.page}
+									pageNumber={index + 1}
+									inputRef={
+										pageNumber === index + 1
+											? (ref) => ref?.scrollIntoView()
+											: null
+									}
+									{...pageScaleOptions}
+								/>
+							))}
+						</div>
 					</div>
 				</div>
 			</Document>
