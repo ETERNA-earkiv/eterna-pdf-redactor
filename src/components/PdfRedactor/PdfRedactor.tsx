@@ -3,6 +3,7 @@ import {
 	RefObject,
 	createRef,
 	useCallback,
+	useEffect,
 	useMemo,
 	useRef,
 	useState,
@@ -39,10 +40,35 @@ type ScaleOptionProperties = {
 	height: number | undefined;
 };
 
+interface PageProxyWithWidthHeight extends PDFPageProxy {
+	width: number;
+	height: number;
+	originalWidth: number;
+	originalHeight: number;
+}
+
 function PdfRedactor(props: PdfRedactorProps) {
 	const [sidebarVisible, setSidebarVisible] = useState<boolean>(false);
 	const [numPages, setNumPages] = useState<number>();
 	const [pageNumber, setPageNumber] = useState<number>();
+
+	const viewport = useRef<HTMLDivElement>(null);
+	const currentViewport = viewport.current;
+
+	const [ignoreScrollEvents, setIgnoreScrollEvents] = useState<boolean>(false);
+
+	useEffect(() => {
+		if (currentViewport === null) {
+			return;
+		}
+
+		const tmpScrollEndHandler = () => setIgnoreScrollEvents(false);
+		currentViewport.addEventListener("scrollend", tmpScrollEndHandler);
+
+		return () => {
+			currentViewport?.removeEventListener("scrollend", tmpScrollEndHandler);
+		};
+	}, [currentViewport]);
 
 	const pageProxyObjects: Array<PDFPageProxy | undefined> = useMemo(
 		() => Array.from({ length: numPages ?? 0 }, (_) => undefined),
@@ -62,8 +88,6 @@ function PdfRedactor(props: PdfRedactorProps) {
 			height: undefined,
 		});
 
-	const viewport = useRef<HTMLDivElement>(null);
-
 	const onPageClick = useCallback(
 		(
 			event: React.MouseEvent<HTMLDivElement>,
@@ -74,6 +98,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 
 	const goToPage = useCallback(
 		(pageNumber: number) => {
+			setIgnoreScrollEvents(true);
 			pageElementRefs[pageNumber - 1].current?.scrollIntoView();
 			setPageNumber(pageNumber);
 		},
@@ -87,10 +112,13 @@ function PdfRedactor(props: PdfRedactorProps) {
 		[goToPage],
 	);
 
-	const onDocumentLoadSuccess = useCallback((pdfDocument: PDFDocumentProxy) => {
-		setNumPages(pdfDocument.numPages);
-		setPageNumber(1);
-	}, []);
+	const onDocumentLoadSuccess = useCallback(
+		(pdfDocument: PDFDocumentProxy) => {
+			setNumPages(pdfDocument.numPages);
+			setPageNumber(1);
+		},
+		[],
+	);
 
 	const onPageLoadSuccess = useCallback(
 		(pdfPage: PDFPageProxy) => {
@@ -123,6 +151,48 @@ function PdfRedactor(props: PdfRedactorProps) {
 		}
 	};
 
+	const onScroll = (e: React.UIEvent<HTMLDivElement, UIEvent>) => {
+		if (ignoreScrollEvents === true || viewport.current === null) {
+			return;
+		}
+
+		let mostVisiblePageIndex = pageNumber !== undefined ? pageNumber - 1 : 0;
+		let largestVisibleHeight = 0;
+
+		for (let i = 0; i < pageElementRefs.length; i++) {
+			const page = pageElementRefs[i].current;
+
+			if (page === null) {
+				return;
+			}
+
+			const viewportHeight = viewport.current.clientHeight;
+			const deltaTop = page.offsetTop - viewport.current.scrollTop;
+			const deltaBottom =
+				page.offsetTop + page.offsetHeight - viewport.current.scrollTop;
+			const visibleHeight = Math.max(
+				0,
+				deltaTop > 0
+					? Math.min(page.offsetHeight, viewportHeight - deltaTop)
+					: Math.min(deltaBottom, viewportHeight),
+			);
+
+			if (
+				page.offsetTop + page.offsetHeight > viewport.current.scrollTop &&
+				page.offsetTop <
+					viewport.current.scrollTop + viewport.current.clientHeight &&
+				visibleHeight > largestVisibleHeight
+			) {
+				largestVisibleHeight = visibleHeight;
+				mostVisiblePageIndex = i;
+			}
+		}
+
+		if (mostVisiblePageIndex + 1 !== pageNumber) {
+			setPageNumber(mostVisiblePageIndex + 1);
+		}
+	};
+
 	return (
 		<>
 			<Document
@@ -152,7 +222,11 @@ function PdfRedactor(props: PdfRedactorProps) {
 					<ToolbarItem.Spacer />
 					<ToolbarItem.ScaleSelector
 						viewport={viewport}
-						pageProxy={pageNumber !== undefined ? pageProxyObjects[pageNumber - 1] : undefined}
+						pageProxy={
+							pageNumber !== undefined
+								? (pageProxyObjects[pageNumber - 1] as PageProxyWithWidthHeight)
+								: undefined
+						}
 						onChange={(scale) => setPageScaleOptions(scale)}
 					/>
 					<ToolbarItem.Spacer />
@@ -188,7 +262,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 						))}
 					</aside>
 					{/*<Outline className="test" />*/}
-					<div ref={viewport} className={styles.viewport}>
+					<div ref={viewport} className={styles.viewport} onScroll={onScroll}>
 						<div className={styles.pagePosition}>
 							{Array.from(new Array(numPages), (_, index) => (
 								<Page
