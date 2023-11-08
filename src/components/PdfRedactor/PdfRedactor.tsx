@@ -134,8 +134,14 @@ function PdfRedactor(props: PdfRedactorProps) {
 			>
 				<Toolbar className={styles.toolbar} iconSize="18">
 					<ToolbarItem.SidebarToggle onClick={toggleSidebar} />
-					<ToolbarItem.PreviousPage onClick={goToPrevPage} />
-					<ToolbarItem.NextPage onClick={goToNextPage} />
+					<ToolbarItem.PreviousPage
+						onClick={goToPrevPage}
+						disabled={pageNumber === null || pageNumber === 1}
+					/>
+					<ToolbarItem.NextPage
+						onClick={goToNextPage}
+						disabled={pageNumber === null || pageNumber === numPages}
+					/>
 					<ToolbarItem.PageSelector
 						onChange={(e: ChangeEvent<HTMLInputElement>) =>
 							goToPage(parseInt(e.target.value, 10))
