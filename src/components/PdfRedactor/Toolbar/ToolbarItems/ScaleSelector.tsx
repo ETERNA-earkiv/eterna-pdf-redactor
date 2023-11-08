@@ -21,10 +21,17 @@ const AllProps: {
 	height: undefined,
 };
 
+interface PageProxyWithWidthHeight extends PDFPageProxy {
+	width: number,
+	height: number,
+	originalWidth: number,
+	originalHeight: number
+}
+
 type ScaleSelectorProps = {
 	onChange: (scale: typeof AllProps) => void;
 	viewport: React.RefObject<HTMLElement>;
-	pageProxy?: PDFPageProxy;
+	pageProxy?: PageProxyWithWidthHeight;
 	pageNumber?: number;
 	numPages?: number;
 };
