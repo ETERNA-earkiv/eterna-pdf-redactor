@@ -152,6 +152,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 					<ToolbarItem.Spacer />
 					<ToolbarItem.ScaleSelector
 						viewport={viewport}
+						pageProxy={pageNumber !== undefined ? pageProxyObjects[pageNumber - 1] : undefined}
 						onChange={(scale) => setPageScaleOptions(scale)}
 					/>
 					<ToolbarItem.Spacer />

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { FiMinus, FiPlus } from "react-icons/fi";
 import useElementSize from "../../../../hooks/useElementSize";
+import { PDFPageProxy } from "pdfjs-dist";
 
 const ScaleProps: {
 	width: number | undefined;
@@ -23,6 +24,7 @@ const AllProps: {
 type ScaleSelectorProps = {
 	onChange: (scale: typeof AllProps) => void;
 	viewport: React.RefObject<HTMLElement>;
+	pageProxy?: PDFPageProxy;
 	pageNumber?: number;
 	numPages?: number;
 };
@@ -55,8 +57,8 @@ const ScaleOptionKeys: Array<keyof typeof ScaleOptions> = [
 	"1.5",
 	"2",
 	"3",
-	"4"
-]
+	"4",
+];
 
 function ScaleSelector(props: ScaleSelectorProps) {
 	const [selectedScale, setSelectedScale] =
@@ -87,7 +89,17 @@ function ScaleSelector(props: ScaleSelectorProps) {
 		const value = e.target.value as keyof typeof ScaleOptions;
 		setSelectedScale(value);
 		switch (value) {
-			case "page-fit": // Not correct, neeed PDF-dimensions to set accurately
+			case "page-fit":
+				if (
+					props.pageProxy !== undefined &&
+					viewportSize.width / viewportSize.height <
+						props.pageProxy.originalWidth / props.pageProxy.originalHeight
+				) {
+					return props.onChange({
+						...ScaleOptions[value].props,
+						width: viewportSize.width,
+					});
+				}
 				return props.onChange({
 					...ScaleOptions[value].props,
 					height: viewportSize.height,
