@@ -120,6 +120,8 @@ function PdfRedactor(props: PdfRedactorProps) {
 			height: undefined,
 		});
 
+	const [currentPageProxy, setCurrentPageProxy] = useState<PDFPageProxy | undefined>(pageProxyObjects[pageNumber ?? 0]);
+
 	const onPageClick = useCallback(
 		(
 			event: React.MouseEvent<HTMLDivElement>,
@@ -147,13 +149,18 @@ function PdfRedactor(props: PdfRedactorProps) {
 	const onDocumentLoadSuccess = useCallback((pdfDocument: PDFDocumentProxy) => {
 		setNumPages(pdfDocument.numPages);
 		setPageNumber(1);
+		
 	}, []);
 
 	const onPageLoadSuccess = useCallback(
 		(pdfPage: PDFPageProxy) => {
+			if(pageNumber === pdfPage._pageIndex) {
+				setCurrentPageProxy(pdfPage);
+			}
+
 			pageProxyObjects[pdfPage._pageIndex] = pdfPage;
 		},
-		[pageProxyObjects],
+		[pageNumber, pageProxyObjects],
 	);
 
 	const toggleSidebar = () => {

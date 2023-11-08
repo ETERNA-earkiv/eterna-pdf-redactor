@@ -22,10 +22,10 @@ const AllProps: {
 };
 
 interface PageProxyWithWidthHeight extends PDFPageProxy {
-	width: number,
-	height: number,
-	originalWidth: number,
-	originalHeight: number
+	width: number;
+	height: number;
+	originalWidth: number;
+	originalHeight: number;
 }
 
 type ScaleSelectorProps = {
@@ -36,40 +36,59 @@ type ScaleSelectorProps = {
 	numPages?: number;
 };
 
-const ScaleOptions = {
+const ScaleOptionKeys = [
+	"page-actual",
+	"page-fit",
+	"page-width",
+	"custom",
+	"50",
+	"75",
+	"100",
+	"125",
+	"150",
+	"200",
+	"300",
+	"400",
+] as const;
+
+type ScaleOptionType = {
+	name: string;
+	hidden?: boolean;
+	props: typeof AllProps;
+};
+
+type ScaleOptionKeysType = typeof ScaleOptionKeys[number];
+
+type ScaleOptionsType = {
+	[K in ScaleOptionKeysType]: ScaleOptionType;
+};
+
+const ScaleOptions: ScaleOptionsType = {
 	"page-actual": {
 		name: "Verklig storlek",
 		props: { scale: 1, ...ScaleProps },
 	},
 	"page-fit": { name: "Anpassa sida", props: { ...AllProps } },
 	"page-width": { name: "Sidbredd", props: { ...AllProps } },
-	"0.5": { name: "50%", props: { scale: 0.5, ...ScaleProps } },
-	"0.75": { name: "75%", props: { scale: 0.75, ...ScaleProps } },
-	"1": { name: "100%", props: { scale: 1, ...ScaleProps } },
-	"1.25": { name: "125%", props: { scale: 1.25, ...ScaleProps } },
-	"1.5": { name: "150%", props: { scale: 1.5, ...ScaleProps } },
-	"2": { name: "200%", props: { scale: 2, ...ScaleProps } },
-	"3": { name: "300%", props: { scale: 3, ...ScaleProps } },
-	"4": { name: "400%", props: { scale: 4, ...ScaleProps } },
+	custom: { name: "", hidden: true, props: { ...AllProps } },
+	"50": { name: "50%", props: { scale: 0.5, ...ScaleProps } },
+	"75": { name: "75%", props: { scale: 0.75, ...ScaleProps } },
+	"100": { name: "100%", props: { scale: 1, ...ScaleProps } },
+	"125": { name: "125%", props: { scale: 1.25, ...ScaleProps } },
+	"150": { name: "150%", props: { scale: 1.5, ...ScaleProps } },
+	"200": { name: "200%", props: { scale: 2, ...ScaleProps } },
+	"300": { name: "300%", props: { scale: 3, ...ScaleProps } },
+	"400": { name: "400%", props: { scale: 4, ...ScaleProps } },
 };
 
-const ScaleOptionKeys: Array<keyof typeof ScaleOptions> = [
-	"page-actual",
-	"page-fit",
-	"page-width",
-	"0.5",
-	"0.75",
-	"1",
-	"1.25",
-	"1.5",
-	"2",
-	"3",
-	"4",
+const CustomScaleValues = [
+	10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 130, 150, 170, 190, 210, 240,
+	270, 300, 330, 370, 410, 460, 510, 570, 630, 700, 770, 850, 940, 1000,
 ];
 
 function ScaleSelector(props: ScaleSelectorProps) {
 	const [selectedScale, setSelectedScale] =
-		useState<keyof typeof ScaleOptions>("1");
+		useState<ScaleOptionKeysType>("100");
 	const viewportSize = useElementSize(props.viewport);
 
 	/*
@@ -93,7 +112,7 @@ function ScaleSelector(props: ScaleSelectorProps) {
 	*/
 
 	const onChange: React.ChangeEventHandler<HTMLSelectElement> = (e) => {
-		const value = e.target.value as keyof typeof ScaleOptions;
+		const value = e.target.value as ScaleOptionKeysType;
 		setSelectedScale(value);
 		switch (value) {
 			case "page-fit":
@@ -125,19 +144,80 @@ function ScaleSelector(props: ScaleSelectorProps) {
 		}
 	};
 
+	const zoom = (zoomIn: boolean) => {
+		if (props.pageProxy === undefined) {
+			return;
+		}
+
+		const currentScale = ScaleOptions[selectedScale].props.scale;
+
+		const currentScalePercent =
+			currentScale !== undefined
+				? Math.round(currentScale * 100)
+				: Math.round((props.pageProxy.width / props.pageProxy.originalWidth) * 100);
+
+		let newCustomIndex = -1;
+		const currentCustomIndex = CustomScaleValues.indexOf(currentScalePercent);
+
+		if (currentCustomIndex >= 0) {
+			if (zoomIn === true && currentCustomIndex < CustomScaleValues.length - 1) {
+				newCustomIndex = currentCustomIndex + 1;
+			} else if(zoomIn === false && currentCustomIndex > 0) {
+				newCustomIndex = currentCustomIndex - 1;
+			}
+		} else {
+			if (zoomIn) {
+				for (let i = CustomScaleValues.length - 1; i > 0; i--) {
+					if (CustomScaleValues[i] > currentScalePercent) {
+						newCustomIndex = i;
+					} else {
+						break;
+					}
+				}
+			} else {
+				for (let i = 0; i < CustomScaleValues.length; i++) {
+					if (CustomScaleValues[i] < currentScalePercent) {
+						newCustomIndex = i;
+					} else {
+						break;
+					}
+				}
+			}
+		}
+
+		if (newCustomIndex >= 0) {
+			ScaleOptions.custom.name = `${CustomScaleValues[
+				newCustomIndex
+			].toString()}%`;
+			ScaleOptions.custom.props.scale = CustomScaleValues[newCustomIndex] / 100;
+
+			props.onChange({
+				...ScaleOptions.custom.props,
+			});
+
+			setSelectedScale("custom");
+		}
+	};
+
 	return (
 		<>
-			<button type="button">
+			<button type="button" onClick={() => zoom(false)}>
 				<FiMinus />
 			</button>
-			<button type="button">
+			<button type="button" onClick={() => zoom(true)}>
 				<FiPlus />
 			</button>
 			<select value={selectedScale} onChange={onChange}>
 				{ScaleOptionKeys.map((key) => {
+					const scaleOpt = ScaleOptions[key as keyof typeof ScaleOptions];
 					return (
-						<option key={key} value={key}>
-							{ScaleOptions[key as keyof typeof ScaleOptions].name}
+						<option
+							key={key}
+							value={key}
+							hidden={scaleOpt.hidden}
+							disabled={scaleOpt.hidden}
+						>
+							{scaleOpt.name}
 						</option>
 					);
 				})}
