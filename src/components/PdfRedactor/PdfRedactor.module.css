@@ -28,6 +28,19 @@
     background-color: rgba(0, 0, 0, .1);
 }
 
+.toolbar button:not([disabled]):active:hover {
+    background-color: rgba(0, 0, 0, .2);
+}
+
+.toolbar button[data-selected="true"] {
+    box-shadow: inset 1px 1px rgba(0, 0, 0, .2), inset -1px -1px rgba(255, 255, 255, .2);;
+    background-color: rgba(0, 0, 0, .2);
+}
+
+.toolbar button[data-selected="true"]:hover {
+    background-color: rgba(0, 0, 0, .3);
+}
+
 .toolbar input {
     text-align: right;
     width: 5rem;
@@ -135,6 +148,7 @@
     overflow-y: auto;
     overflow-x: auto;
     scroll-behavior: smooth;
+    position: relative;
 }
 
 .workarea .viewport .pagePosition {
@@ -149,4 +163,41 @@
 .page {
     margin: 0 auto;
     box-shadow: 3px 3px 8px rgba(0, 0, 0, .1);
+}
+
+.viewport.textRedactorActive .page span::-moz-selection, .viewport.textRedactorActive .page span::selection {
+    background: transparent;
+}
+
+.markedForRedactionContainer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    z-index: 1;
+}
+
+.markedForRedaction {
+    outline: 2px solid red;
+    background: rgba(255, 0, 0, .2);
+    position: absolute;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.redactedContainer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    z-index: 4;
+}
+
+.redacted {
+    outline: 2px solid black;
+    background: #000;
+    position: absolute;
+    z-index: 4;
 }
