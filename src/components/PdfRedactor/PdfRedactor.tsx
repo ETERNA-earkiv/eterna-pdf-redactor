@@ -372,6 +372,8 @@ function PdfRedactor(props: PdfRedactorProps) {
 	};
 
 	const Save = async () => {
+		const start = performance.now();
+
 		if (documentProxy === undefined || numPages === 0) {
 			return;
 		}
@@ -417,11 +419,28 @@ function PdfRedactor(props: PdfRedactorProps) {
 				}
 			}
 
+			const cavasToBlobPromise = () => {
+				return new Promise<Blob>((resolve, reject) => {
+					canvas.toBlob((blob) => {
+						if(blob === null) {
+							reject();
+						} else {
+							resolve(blob);
+						}
+						
+					}, "image/png")
+				})
+			}
+			
+			const imageBlob = await cavasToBlobPromise();
+			const imageBuffer = await imageBlob .arrayBuffer();
+
 			const width = (page as PageProxyWithWidthHeight).originalWidth;
 			const height = (page as PageProxyWithWidthHeight).originalHeight;
 
 			const newPage = newDocument.addPage([width, height]);
-			const image = await newDocument.embedPng(canvas.toDataURL("image/png"));
+
+			const image = await newDocument.embedPng(imageBuffer);
 			newPage.drawImage(image, {
 				x: 0,
 				y: 0,
@@ -431,6 +450,9 @@ function PdfRedactor(props: PdfRedactorProps) {
 		}
 
 		const base64DataUri = await newDocument.saveAsBase64({ dataUri: true });
+
+		const end = performance.now();
+		console.log(`PDF Export took ${end-start}ms`);
 
 		const link = document.createElement("a");
 		link.setAttribute("download", "page1.pdf");
