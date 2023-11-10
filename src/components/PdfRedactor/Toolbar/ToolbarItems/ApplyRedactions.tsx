@@ -7,14 +7,16 @@ type ApplyRedactionsProps = {
 
 function ApplyRedactions(props: ApplyRedactionsProps) {
 	return (
-		<button
-			type="button"
-			onClick={props.onClick}
-			disabled={props.disabled}
-			className={styles.ApplyRedactions}
-		>
-			<span>Applicera</span>
-		</button>
+		<div className={styles.ApplyRedactionsContainer}>
+			<button
+				type="button"
+				onClick={props.onClick}
+				disabled={props.disabled}
+				className={styles.ApplyRedactions}
+			>
+				<span>Applicera</span>
+			</button>
+		</div>
 	);
 }
 
