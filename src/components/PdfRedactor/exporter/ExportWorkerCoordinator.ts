@@ -1,0 +1,189 @@
+import { PDFDocumentProxy } from "pdfjs-dist";
+import { ExportWorkerMessage } from "./types/ExportWorkerMessage";
+import { ExportWorkerResponse } from "./types/ExportWorkerResponse";
+import { ExportedXObjects } from "./types/ExportedXObjects";
+import { exportPdfWithWorkers } from "./exportPdfWithWorkers";
+import { exportPdfAsync } from "./exportPdfAsync";
+
+export default class ExportWorkerCoordinator extends EventTarget{
+	private workers: Worker[] = [];
+	private workerIndex = 0;
+
+	private _numberOfWorkers: number;
+
+	public get numberOfWorkers() {
+		return this._numberOfWorkers;
+	}
+
+	private pageNumberResolverMap = new Map<
+		number,
+		(value: ExportedXObjects | PromiseLike<ExportedXObjects>) => void
+	>();
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+	private pageNumberRejectMap = new Map<number, (reason?: any) => void>();
+
+	private workerResolverMap = new Map<Worker, (value: unknown) => void>();
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+	private workerRejectMap = new Map<Worker, (reason?: any) => void>();
+
+	private messageListener = (e: MessageEvent<ExportWorkerResponse>) => {
+		if (e.data.type === "exportPage") {
+			const pageNumber = e.data.params.pageNumber;
+			const resolve = this.pageNumberResolverMap.get(pageNumber);
+			if (resolve !== undefined) {
+				resolve(e.data.params);
+			}
+		}
+	};
+
+	private documentBytes = new Uint8Array(0);
+
+	constructor(numberOfWorkers = navigator.hardwareConcurrency || 4) {
+		super();
+		this._numberOfWorkers = numberOfWorkers;
+		this.workers = Array.from({ length: numberOfWorkers }, () =>
+			this.createWorker(),
+		);
+	}
+
+	private createWorker() {
+		const worker = new Worker(new URL("./exportWorker.ts", import.meta.url), {
+			type: "module",
+		});
+		worker.addEventListener("message", this.messageListener);
+		worker.addEventListener(
+			"message",
+			(e: MessageEvent<ExportWorkerResponse>) => {
+				if (e.data.type === "loadDocument") {
+					const resolve = this.workerResolverMap.get(worker);
+					if (resolve !== undefined) {
+						resolve(null);
+					}
+				}
+			},
+		);
+
+		return worker;
+	}
+
+	private removeWorker(worker: Worker) {
+		this.workerResolverMap.delete(worker);
+		this.workerRejectMap.delete(worker);
+		worker.terminate();
+	}
+
+	private setupWorker(worker: Worker) {
+		const promise = new Promise((resolve, reject) => {
+			this.workerResolverMap.set(worker, resolve);
+			this.workerRejectMap.set(worker, reject);
+		}).then(() => {});
+
+		if (this.documentBytes.byteLength === 0) {
+			return Promise.resolve(undefined).then(() => {});
+		}
+
+		let bytes: Uint8Array | undefined = new Uint8Array(this.documentBytes);
+
+		worker.postMessage(
+			<ExportWorkerMessage>{
+				type: "loadDocument",
+				params: { buffer: bytes },
+			},
+			[bytes.buffer],
+		);
+
+		bytes = undefined;
+
+		return promise;
+	}
+
+	public setNumberOfWorkers(numberOfWorkers: number) {
+		if (numberOfWorkers > this._numberOfWorkers) {
+			const newWorkers: Worker[] = Array.from(
+				{ length: numberOfWorkers - this._numberOfWorkers },
+				() => this.createWorker(),
+			);
+
+			this.workers.push(...newWorkers);
+			this._numberOfWorkers = numberOfWorkers;
+
+			if (this.documentBytes.length === 0) {
+				return Promise.resolve(undefined).then(() => {});
+			}
+
+			const workerPromises = newWorkers.map((worker) =>
+				this.setupWorker(worker),
+			);
+
+			return Promise.all(workerPromises).then(() => {});
+		} else if (numberOfWorkers < this._numberOfWorkers) {
+			for (let i = this._numberOfWorkers - 1; i >= numberOfWorkers; i--) {
+				const worker: Worker = this.workers.splice(
+					this.workers.length - 1,
+					1,
+				)[0];
+				this.removeWorker(worker);
+			}
+
+			this._numberOfWorkers = numberOfWorkers;
+		}
+
+		return Promise.resolve(undefined).then(() => {});
+	}
+
+	public dispose() {
+		for (let i = 0; i < this.numberOfWorkers; i++) {
+			const worker: Worker = this.workers.splice(i, 1)[0];
+			this.removeWorker(worker);
+		}
+
+		this.pageNumberResolverMap.clear();
+		this.pageNumberRejectMap.clear();
+	}
+
+	public loadDocument(pdfDocumentBytes: Uint8Array) {
+		this.documentBytes = new Uint8Array(pdfDocumentBytes);
+
+		const workerPromises = this.workers.map((worker) =>
+			this.setupWorker(worker),
+		);
+
+		return Promise.all(workerPromises).then(() => {});
+	}
+
+	public exportPage(
+		pageNumber: number,
+		boxes: DOMRect[] | undefined,
+		scale: number,
+	) {
+		const promise = new Promise<ExportedXObjects>((resolve, reject) => {
+			this.pageNumberResolverMap.set(pageNumber, resolve);
+			this.pageNumberRejectMap.set(pageNumber, reject);
+
+			this.workers[this.workerIndex].postMessage(<ExportWorkerMessage>{
+				type: "exportPage",
+				params: {
+					pageNumber,
+					boxes,
+					scale,
+				},
+			});
+
+			this.workerIndex = (this.workerIndex + 1) % this.workers.length;
+		});
+
+		return promise;
+	}
+
+	public async exportPdf(
+		documentProxy: PDFDocumentProxy,
+		boxes: DOMRect[][],
+		scale: number,
+	) {
+		if (window.Worker) {
+			return await exportPdfWithWorkers(this, documentProxy, boxes, scale);
+		} else {
+			return await exportPdfAsync(documentProxy, boxes, scale);
+		}
+	}
+}
