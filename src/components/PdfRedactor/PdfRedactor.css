@@ -1,0 +1,3 @@
+.textLayer *:is(span, br) {
+    user-select: text;
+}

@@ -8,11 +8,13 @@ import {
 	useRef,
 	useState,
 } from "react";
+
 import { Document, Page, Outline, Thumbnail, pdfjs } from "react-pdf";
 import { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
-
+import { PDFDocument, PDFImage } from "pdf-lib";
 import clsx from "clsx";
 
+import { useMemoizedRefArray } from "../../hooks/useMemoizedRefArray";
 import Toolbar from "./Toolbar/Toolbar";
 import * as ToolbarItem from "./Toolbar/ToolbarItems";
 
@@ -20,6 +22,14 @@ import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
 import styles from "./PdfRedactor.module.css";
+import "./PdfRedactor.css";
+import { areDOMRectsMergable, mergeDOMRects } from "./DOMRectUtils";
+
+import FileSaver from "file-saver";
+import ExportContext, {
+	ExportContextType,
+	ExportProvider,
+} from "./exporter/ExportContext";
 
 pdfjs.GlobalWorkerOptions.workerSrc = "pdfjs/pdf.worker.min.js";
 
@@ -47,36 +57,11 @@ interface PageProxyWithWidthHeight extends PDFPageProxy {
 	originalHeight: number;
 }
 
-function areDOMRectsMergable(a: DOMRect, b: DOMRect) {
-	if (
-		(Math.abs(a.top - b.top) <= 2 &&
-			Math.abs(a.height - b.height) <= 2 &&
-			!(a.left > b.right + 2 || a.right < b.left - 2)) ||
-		(Math.abs(a.left - b.left) <= 2 &&
-			Math.abs(a.width - b.width) <= 2 &&
-			!(a.top > b.bottom + 2 || a.bottom < b.top - 2))
-	) {
-		return true;
-	}
-
-	return false;
-}
-
-function mergeDOMRects(a: DOMRect, b: DOMRect) {
-	const newDOMRect = DOMRect.fromRect();
-
-	newDOMRect.x = Math.min(a.x, b.x);
-	newDOMRect.y = Math.min(a.y, b.y);
-	newDOMRect.width = Math.max(a.right, b.right) - newDOMRect.x;
-	newDOMRect.height = Math.max(a.bottom, b.bottom) - newDOMRect.y;
-
-	return newDOMRect;
-}
-
 function PdfRedactor(props: PdfRedactorProps) {
+	const [documentProxy, setDocumentProxy] = useState<PDFDocumentProxy>();
 	const [sidebarVisible, setSidebarVisible] = useState<boolean>(false);
-	const [numPages, setNumPages] = useState<number>();
-	const [pageNumber, setPageNumber] = useState<number>();
+	const [numPages, setNumPages] = useState<number>(0);
+	const [pageNumber, setPageNumber] = useState<number>(0);
 
 	const [textRedactorSelected, setTextRedactorSelected] =
 		useState<boolean>(false);
@@ -87,6 +72,8 @@ function PdfRedactor(props: PdfRedactorProps) {
 	const currentViewport = viewport.current;
 
 	const [ignoreScrollEvents, setIgnoreScrollEvents] = useState<boolean>(false);
+
+	const exporter = useRef<ExportContextType>(null);
 
 	useEffect(() => {
 		if (currentViewport === null) {
@@ -103,7 +90,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
 	useEffect(() => {
-		if (pageNumber === undefined || sidebarVisible === false) {
+		if (pageNumber === 0 || sidebarVisible === false) {
 			return;
 		}
 
@@ -125,23 +112,19 @@ function PdfRedactor(props: PdfRedactorProps) {
 		}
 	}, [pageNumber]);
 
+	/*
 	const pageProxyObjects: Array<PDFPageProxy | undefined> = useMemo(
-		() => Array.from({ length: numPages ?? 0 }, (_) => undefined),
+		() => Array.from({ length: numPages }, (_) => undefined),
 		[numPages],
 	);
+	*/
+	const [pageProxyObjects, setPageProxyObjects] = useState<PDFPageProxy[]>([]);
 
-		console.log(pageProxyObjects);
+	const pageElementRefs = useMemoizedRefArray<HTMLDivElement>(numPages, null);
 
-	const pageElementRefs: RefObject<HTMLDivElement>[] = useMemo(
-		() =>
-			Array.from({ length: numPages ?? 0 }, (_) => createRef<HTMLDivElement>()),
-		[numPages],
-	);
-
-	const thumbnailElementRefs: RefObject<HTMLDivElement>[] = useMemo(
-		() =>
-			Array.from({ length: numPages ?? 0 }, (_) => createRef<HTMLDivElement>()),
-		[numPages],
+	const thumbnailElementRefs = useMemoizedRefArray<HTMLDivElement>(
+		numPages,
+		null,
 	);
 
 	const [pageScaleOptions, setPageScaleOptions] =
@@ -151,9 +134,12 @@ function PdfRedactor(props: PdfRedactorProps) {
 			height: undefined,
 		});
 
-	const [currentPageProxy, setCurrentPageProxy] = useState<
-		PDFPageProxy | undefined
-	>(pageProxyObjects[pageNumber ?? 0]);
+	const [pageScale, setPageScale] = useState(1);
+	const pageScaleRef = useRef<number>(1);
+
+	const [_, setCurrentPageProxy] = useState<PDFPageProxy | undefined>(
+		pageProxyObjects[pageNumber],
+	);
 
 	const onPageClick = useCallback(
 		(
@@ -180,6 +166,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 	);
 
 	const onDocumentLoadSuccess = useCallback((pdfDocument: PDFDocumentProxy) => {
+		setDocumentProxy(pdfDocument);
 		setNumPages(pdfDocument.numPages);
 		setPageNumber(1);
 	}, []);
@@ -191,6 +178,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 			}
 
 			pageProxyObjects[pdfPage._pageIndex] = pdfPage;
+			setPageProxyObjects(pageProxyObjects);
 		},
 		[pageNumber, pageProxyObjects],
 	);
@@ -200,17 +188,13 @@ function PdfRedactor(props: PdfRedactorProps) {
 	};
 
 	const goToPrevPage = () => {
-		if (pageNumber === undefined) {
-			return;
-		}
-
 		if (pageNumber > 1) {
 			goToPage(pageNumber - 1);
 		}
 	};
 
 	const goToNextPage = () => {
-		if (pageNumber === undefined || numPages === undefined) {
+		if (pageNumber === 0 || numPages === 0) {
 			return;
 		}
 
@@ -224,7 +208,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 			return;
 		}
 
-		let mostVisiblePageIndex = pageNumber !== undefined ? pageNumber - 1 : 0;
+		let mostVisiblePageIndex = pageNumber - 1;
 		let largestVisibleHeight = 0;
 
 		for (let i = 0; i < pageElementRefs.length; i++) {
@@ -262,253 +246,334 @@ function PdfRedactor(props: PdfRedactorProps) {
 	};
 
 	const [boxesMarkedForRedaction, setBoxesMarkedForRedaction] = useState<
-		DOMRect[]
+		DOMRect[][]
 	>([]);
-	const [boxesRedacted, setBoxesRedacted] = useState<DOMRect[]>([]);
+	const [boxesRedacted, setBoxesRedacted] = useState<DOMRect[][]>([]);
 
-	useEffect(() => {
-		if (textRedactorSelected) {
-			console.log("Installing selection handler");
+	const redactedRangesHandler = useCallback(
+		(ranges: Range[]) => {
+			const currentBoxes: Array<DOMRect | null>[] = Array.from(
+				{ length: numPages },
+				(_) => [],
+			);
 
-			const selectionHandler = () => {
-				const selection = document.getSelection();
-				if (selection === null) {
-					return;
+			for (let rangeIndex = 0; rangeIndex < ranges.length; rangeIndex++) {
+				const range = ranges[rangeIndex];
+
+				let pageIndex = NaN;
+				let currentNode: Node | Element | null = range.commonAncestorContainer;
+
+				do {
+					if (
+						currentNode.nodeType === Node.ELEMENT_NODE &&
+						(currentNode as Element).hasAttribute("data-page-number")
+					) {
+						pageIndex = parseInt(
+							(currentNode as Element).getAttribute(
+								"data-page-number",
+							) as string,
+							10,
+						);
+						break;
+					}
+
+					currentNode = currentNode.parentElement;
+				} while (currentNode !== null);
+
+				if (Number.isNaN(pageIndex)) {
+					continue;
 				}
 
-				let currentBoxes: Array<DOMRect | null> = [];
-				if (selection.type !== "Range") {
-					setBoxesMarkedForRedaction([]);
-					return;
-				}
+				const clientRects = Array.from(range.getClientRects());
+				currentBoxes[pageIndex - 1].push(...clientRects);
+			}
 
-				console.log("selection", selection);
-
-				console.log("rangeCount", selection.rangeCount);
-
-				for (
-					let rangeIndex = 0;
-					rangeIndex < selection.rangeCount;
-					rangeIndex++
-				) {
-					const range = selection.getRangeAt(rangeIndex);
-
-					const clientRects = range.getClientRects();
-					currentBoxes.push(...clientRects);
-				}
-
+			for (let pageIndex = 0; pageIndex < numPages; pageIndex++) {
 				for (
 					let rectIndex = 0;
-					rectIndex < currentBoxes.length - 1;
+					rectIndex < currentBoxes[pageIndex].length - 1;
 					rectIndex++
 				) {
 					if (
 						areDOMRectsMergable(
-							currentBoxes[rectIndex] as DOMRect,
-							currentBoxes[rectIndex + 1] as DOMRect,
+							currentBoxes[pageIndex][rectIndex] as DOMRect,
+							currentBoxes[pageIndex][rectIndex + 1] as DOMRect,
+							2 * pageScaleRef.current,
 						)
 					) {
-						currentBoxes.splice(
+						currentBoxes[pageIndex].splice(
 							rectIndex,
 							2,
 							null,
 							mergeDOMRects(
-								currentBoxes[rectIndex] as DOMRect,
-								currentBoxes[rectIndex + 1] as DOMRect,
+								currentBoxes[pageIndex][rectIndex] as DOMRect,
+								currentBoxes[pageIndex][rectIndex + 1] as DOMRect,
 							),
 						);
 					}
 				}
+			}
 
-				const viewportRect =
-					viewport.current?.getBoundingClientRect() ?? DOMRect.fromRect();
-
-				currentBoxes = currentBoxes
-					.filter((rect) => rect !== null)
+			const rects = currentBoxes.map((boxes, pageIndex) => {
+				return boxes
+					.filter(
+						(rect) => rect !== null && rect.width !== 0 && rect.height !== 0,
+					)
 					.map((rect) => {
+						const pageRect =
+							pageElementRefs[pageIndex].current?.getBoundingClientRect() ??
+							DOMRect.fromRect();
 						const adjustedRect = DOMRect.fromRect(rect ?? undefined);
 
-						adjustedRect.y =
-							adjustedRect.y -
-							viewportRect.y +
-							(viewport.current?.scrollTop ?? 0);
-						adjustedRect.x =
-							adjustedRect.x -
-							viewportRect.x +
-							(viewport.current?.scrollLeft ?? 0);
+						adjustedRect.x = (adjustedRect.x - pageRect.x) / pageScaleRef.current - 1;
+						adjustedRect.y = (adjustedRect.y - pageRect.y) / pageScaleRef.current - 1;
+						adjustedRect.width = adjustedRect.width / pageScaleRef.current + 2;
+						adjustedRect.height = adjustedRect.height / pageScaleRef.current + 2;
 
 						return adjustedRect;
 					});
+			});
 
-				setBoxesMarkedForRedaction(currentBoxes as DOMRect[]);
-				console.log(currentBoxes);
-			};
+			setBoxesMarkedForRedaction(rects);
+		},
+		[numPages, pageElementRefs],
+	);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+	const selectionHandler = useMemo<() => void>(
+		() => () => {
+			const selection = document.getSelection();
+			if (selection === null || selection.type !== "Range") {
+				setBoxesMarkedForRedaction([]);
+				return;
+			}
+
+			/*
+			TODO:
+				Check if range.commonAncestorContainer is child of pages container
+				if not check if pages are child of range.commonAncestor
+				if they are run function that splits range into subranges that are children of individual pages
+		*/
+
+			const ranges: Range[] = Array.from(
+				{ length: selection.rangeCount },
+				(rangeIndex: number) => selection.getRangeAt(rangeIndex),
+			);
+
+			redactedRangesHandler(ranges);
+		},
+		undefined,
+	);
+
+	const toggleTextRedactor = () => {
+		if (!textRedactorSelected) {
+			setTextRedactorSelected(true);
 			document.addEventListener("selectionchange", selectionHandler);
-
-			return () => {
-				console.log("Uninstallating selection handler");
-				document.removeEventListener("selectionchange", selectionHandler);
-			};
 		} else {
+			setTextRedactorSelected(false);
+			document.removeEventListener("selectionchange", selectionHandler);
 			setBoxesMarkedForRedaction([]);
 		}
-	}, [textRedactorSelected]);
+	};
+
+	const Save = async () => {
+		if (
+			documentProxy === undefined ||
+			numPages === 0 ||
+			exporter.current === null
+		) {
+			return;
+		}
+
+		exporter.current.confirmExport();
+	};
 
 	return (
 		<>
-			<Document
-				className={styles.document}
-				file={props.document}
-				options={options}
-				onItemClick={onItemClick}
-				onLoadSuccess={onDocumentLoadSuccess}
+			<ExportProvider
+				contextRef={exporter}
+				pdfDocument={documentProxy}
+				boxes={boxesRedacted}
+				numberOfPages={numPages}
+				scale={pageScale}
 			>
-				<Toolbar className={styles.toolbar} iconSize="24">
-					<ToolbarItem.SidebarToggle
-						onClick={toggleSidebar}
-						selected={sidebarVisible}
-					/>
-					<ToolbarItem.PreviousPage
-						onClick={goToPrevPage}
-						disabled={pageNumber === null || pageNumber === 1}
-					/>
-					<ToolbarItem.NextPage
-						onClick={goToNextPage}
-						disabled={pageNumber === null || pageNumber === numPages}
-					/>
-					<ToolbarItem.PageSelector
-						onChange={(e: ChangeEvent<HTMLInputElement>) =>
-							goToPage(parseInt(e.target.value, 10))
-						}
-						pageNumber={pageNumber}
-						numPages={numPages}
-					/>
-					<ToolbarItem.Spacer />
-					<ToolbarItem.ScaleSelector
-						viewport={viewport}
-						pageProxy={
-							pageNumber !== undefined
-								? (pageProxyObjects[pageNumber - 1] as PageProxyWithWidthHeight)
-								: undefined
-						}
-						onChange={(scale) => {
-							setTextRedactorSelected(false);
-							setPageScaleOptions(scale);
-						}}
-					/>
-					<ToolbarItem.Spacer />
-					<ToolbarItem.ApplyRedactions
-						onClick={() => {
-							setBoxesRedacted([...boxesRedacted, ...boxesMarkedForRedaction]);
-							setBoxesMarkedForRedaction([]);
-						}}
-						disabled={
-							!textRedactorSelected || boxesMarkedForRedaction.length === 0
-						}
-					/>
-					<ToolbarItem.TextRedactor
-						onClick={() => setTextRedactorSelected(!textRedactorSelected)}
-						selected={textRedactorSelected}
-					/>
-				</Toolbar>
-				<div
-					className={clsx(
-						styles.workarea,
-						sidebarVisible && styles.sidebarVisible,
-					)}
+				<Document
+					className={styles.document}
+					file={props.document}
+					options={options}
+					onItemClick={onItemClick}
+					onLoadSuccess={onDocumentLoadSuccess}
 				>
-					<aside className={styles.sidebar} ref={sidebar}>
-						{Array.from(new Array(numPages), (_, index) => (
-							<div
-								key={`thumbnail_${index + 1}`}
-								className={clsx(
-									styles.thumbnailContainer,
-									index + 1 === pageNumber && styles.active,
-								)}
-								ref={thumbnailElementRefs[index]}
-							>
-								<Thumbnail
-									pageNumber={index + 1}
-									width={180}
-									className={styles.thumbnail}
-								/>
-								{/* biome-ignore lint/a11y/useKeyWithClickEvents: <explanation> */}
-								<span
-									className={styles.pageNumber}
-									onClick={() => setPageNumber(index + 1)}
-								>
-									{index + 1}
-								</span>
-							</div>
-						))}
-					</aside>
-					{/*<Outline className="test" />*/}
+					<Toolbar className={styles.toolbar} iconSize="24">
+						<ToolbarItem.SidebarToggle
+							onClick={toggleSidebar}
+							selected={sidebarVisible}
+						/>
+						<ToolbarItem.PreviousPage
+							onClick={goToPrevPage}
+							disabled={pageNumber <= 1}
+						/>
+						<ToolbarItem.NextPage
+							onClick={goToNextPage}
+							disabled={pageNumber === 0 || pageNumber === numPages}
+						/>
+						<ToolbarItem.PageSelector
+							onChange={(e: ChangeEvent<HTMLInputElement>) =>
+								goToPage(parseInt(e.target.value, 10))
+							}
+							pageNumber={pageNumber}
+							numPages={numPages}
+						/>
+						<ToolbarItem.Spacer />
+						<ToolbarItem.ScaleSelector
+							viewport={viewport}
+							pageProxy={
+								pageNumber !== 0
+									? (pageProxyObjects[
+											pageNumber - 1
+									  ] as PageProxyWithWidthHeight)
+									: undefined
+							}
+							onChange={(scaleOptions) => {
+								setTextRedactorSelected(false);
+								setPageScaleOptions(scaleOptions);
+
+								let currentScale = 1;
+								if (scaleOptions.scale !== undefined) {
+									currentScale = scaleOptions.scale;
+								} else if (
+									pageNumber > 0 &&
+									pageProxyObjects[pageNumber - 1] !== undefined
+								) {
+									const pageProxy = pageProxyObjects[
+										pageNumber - 1
+									] as PageProxyWithWidthHeight;
+									currentScale = pageProxy.width / pageProxy.originalWidth;
+								}
+
+								setPageScale(currentScale);
+								pageScaleRef.current = currentScale;
+							}}
+						/>
+						<ToolbarItem.Spacer />
+						<ToolbarItem.ApplyRedactions
+							onClick={() => {
+								const redacted: DOMRect[][] = [];
+								for (let i = 0; i < numPages; i++) {
+									const tmpBoxesRedacted = boxesRedacted[i] ?? [];
+									const tmpBoxesMarkedForRedaction =
+										boxesMarkedForRedaction[i] ?? [];
+									redacted[i] = [
+										...tmpBoxesRedacted,
+										...tmpBoxesMarkedForRedaction,
+									];
+								}
+
+								setBoxesRedacted(redacted);
+								setBoxesMarkedForRedaction([]);
+							}}
+							disabled={
+								!textRedactorSelected || boxesMarkedForRedaction.length === 0
+							}
+						/>
+						<ToolbarItem.TextRedactor
+							onClick={toggleTextRedactor}
+							selected={textRedactorSelected}
+						/>
+						<ToolbarItem.Save
+							onClick={() => Save()}
+							disabled={boxesRedacted.length === 0}
+						/>
+					</Toolbar>
 					<div
-						ref={viewport}
 						className={clsx(
-							styles.viewport,
-							textRedactorSelected && styles.textRedactorActive,
+							styles.workarea,
+							sidebarVisible && styles.sidebarVisible,
 						)}
-						onScroll={onScroll}
 					>
-						<div className={styles.pagePosition}>
+						<aside className={styles.sidebar} ref={sidebar}>
 							{Array.from(new Array(numPages), (_, index) => (
-								<Page
-									key={`page_${index + 1}`}
-									className={styles.page}
-									pageNumber={index + 1}
-									onLoadSuccess={onPageLoadSuccess}
-									inputRef={pageElementRefs[index]}
-									{...pageScaleOptions}
-								/>
+								<div
+									key={`thumbnail_${index + 1}`}
+									className={clsx(
+										styles.thumbnailContainer,
+										index + 1 === pageNumber && styles.active,
+									)}
+									ref={thumbnailElementRefs[index]}
+								>
+									<Thumbnail
+										pageNumber={index + 1}
+										width={180}
+										className={styles.thumbnail}
+									/>
+									{/* biome-ignore lint/a11y/useKeyWithClickEvents: <explanation> */}
+									<span
+										className={styles.pageNumber}
+										onClick={() => setPageNumber(index + 1)}
+									>
+										{index + 1}
+									</span>
+								</div>
 							))}
-						</div>
-						<div className={styles.markedForRedactionContainer}>
-							{boxesMarkedForRedaction.map((rect, i) => {
-								const top = rect.top;
-								const left = rect.left;
-								const width = rect.width;
-								const height = rect.height;
-
-								return (
-									<div
-										key={`selection_${i}`}
-										className={styles.markedForRedaction}
-										style={{
-											top: `${top}px`,
-											left: `${left}px`,
-											width: `${width}px`,
-											height: `${height}px`,
-										}}
-									/>
-								);
-							})}
-						</div>
-						<div className={styles.redactedContainer}>
-							{boxesRedacted.map((rect, i) => {
-								const top = rect.top;
-								const left = rect.left;
-								const width = rect.width;
-								const height = rect.height;
-
-								return (
-									<div
-										key={`selection_${i}`}
-										className={styles.redacted}
-										style={{
-											top: `${top}px`,
-											left: `${left}px`,
-											width: `${width}px`,
-											height: `${height}px`,
-										}}
-									/>
-								);
-							})}
+						</aside>
+						{/*<Outline className="test" />*/}
+						<div
+							ref={viewport}
+							className={clsx(
+								styles.viewport,
+								textRedactorSelected && styles.textRedactorActive,
+							)}
+							onScroll={onScroll}
+						>
+							<div className={styles.pagePosition}>
+								{Array.from(new Array(numPages), (_, index) => (
+									<Page
+										key={`page_${index + 1}`}
+										className={styles.page}
+										pageNumber={index + 1}
+										onLoadSuccess={onPageLoadSuccess}
+										inputRef={pageElementRefs[index]}
+										{...pageScaleOptions}
+									>
+										<div className={styles.markedForRedactionContainer}>
+											{boxesMarkedForRedaction[index]?.map((rect, i) => {
+												return (
+													<div
+														key={`marked_for_redaction_${i}`}
+														className={styles.markedForRedaction}
+														style={{
+															top: `${rect.top * pageScale}px`,
+															left: `${rect.left * pageScale}px`,
+															width: `${rect.width * pageScale}px`,
+															height: `${rect.height * pageScale}px`,
+														}}
+													/>
+												);
+											})}
+										</div>
+										<div className={styles.redactedContainer}>
+											{boxesRedacted[index]?.map((rect, i) => {
+												return (
+													<div
+														key={`redacted_${i}`}
+														className={styles.redacted}
+														style={{
+															top: `${rect.top * pageScale}px`,
+															left: `${rect.left * pageScale}px`,
+															width: `${rect.width * pageScale}px`,
+															height: `${rect.height * pageScale}px`,
+														}}
+													/>
+												);
+											})}
+										</div>
+									</Page>
+								))}
+							</div>
 						</div>
 					</div>
-				</div>
-			</Document>
+				</Document>
+			</ExportProvider>
 		</>
 	);
 }

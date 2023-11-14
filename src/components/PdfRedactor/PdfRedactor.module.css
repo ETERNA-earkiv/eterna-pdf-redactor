@@ -24,6 +24,10 @@
     margin: 0 3px;
 }
 
+.toolbar button[disabled] {
+    color: #AAA;
+}
+
 .toolbar button:not([disabled]):hover {
     background-color: rgba(0, 0, 0, .1);
 }
@@ -164,8 +168,10 @@
     margin: 0 auto;
     box-shadow: 3px 3px 8px rgba(0, 0, 0, .1);
 }
-
-.viewport.textRedactorActive .page span::-moz-selection, .viewport.textRedactorActive .page span::selection {
+.viewport.textRedactorActive .page span::selection {
+    background: transparent;
+}
+.viewport.textRedactorActive .page span::-moz-selection {
     background: transparent;
 }
 
@@ -183,7 +189,7 @@
     background: rgba(255, 0, 0, .2);
     position: absolute;
     pointer-events: none;
-    z-index: 2;
+    z-index: 1;
 }
 
 .redactedContainer {
@@ -196,7 +202,6 @@
 }
 
 .redacted {
-    outline: 2px solid black;
     background: #000;
     position: absolute;
     z-index: 4;
