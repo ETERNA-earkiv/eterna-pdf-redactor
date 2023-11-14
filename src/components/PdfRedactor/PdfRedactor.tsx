@@ -26,7 +26,10 @@ import "./PdfRedactor.css";
 import { areDOMRectsMergable, mergeDOMRects } from "./DOMRectUtils";
 
 import FileSaver from "file-saver";
-import ExportContext, { ExportContextType, ExportProvider } from "./exporter/ExportContext";
+import ExportContext, {
+	ExportContextType,
+	ExportProvider,
+} from "./exporter/ExportContext";
 
 pdfjs.GlobalWorkerOptions.workerSrc = "pdfjs/pdf.worker.min.js";
 
@@ -132,6 +135,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 		});
 
 	const [pageScale, setPageScale] = useState(1);
+	const pageScaleRef = useRef<number>(1);
 
 	const [_, setCurrentPageProxy] = useState<PDFPageProxy | undefined>(
 		pageProxyObjects[pageNumber],
@@ -280,8 +284,6 @@ function PdfRedactor(props: PdfRedactorProps) {
 					continue;
 				}
 
-				console.log(`Range #${rangeIndex + 1}, Page #${pageIndex}`);
-
 				const clientRects = Array.from(range.getClientRects());
 				currentBoxes[pageIndex - 1].push(...clientRects);
 			}
@@ -296,7 +298,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 						areDOMRectsMergable(
 							currentBoxes[pageIndex][rectIndex] as DOMRect,
 							currentBoxes[pageIndex][rectIndex + 1] as DOMRect,
-							2 * pageScale,
+							2 * pageScaleRef.current,
 						)
 					) {
 						currentBoxes[pageIndex].splice(
@@ -323,10 +325,10 @@ function PdfRedactor(props: PdfRedactorProps) {
 							DOMRect.fromRect();
 						const adjustedRect = DOMRect.fromRect(rect ?? undefined);
 
-						adjustedRect.x = (adjustedRect.x - pageRect.x) / pageScale - 1;
-						adjustedRect.y = (adjustedRect.y - pageRect.y) / pageScale - 1;
-						adjustedRect.width = adjustedRect.width / pageScale + 2;
-						adjustedRect.height = adjustedRect.height / pageScale + 2;
+						adjustedRect.x = (adjustedRect.x - pageRect.x) / pageScaleRef.current - 1;
+						adjustedRect.y = (adjustedRect.y - pageRect.y) / pageScaleRef.current - 1;
+						adjustedRect.width = adjustedRect.width / pageScaleRef.current + 2;
+						adjustedRect.height = adjustedRect.height / pageScaleRef.current + 2;
 
 						return adjustedRect;
 					});
@@ -334,41 +336,39 @@ function PdfRedactor(props: PdfRedactorProps) {
 
 			setBoxesMarkedForRedaction(rects);
 		},
-		[numPages, pageElementRefs, pageScale],
+		[numPages, pageElementRefs],
 	);
 
-	const selectionHandler = useCallback(() => {
-		const selection = document.getSelection();
-		if (selection === null || selection.type !== "Range") {
-			setBoxesMarkedForRedaction([]);
-			return;
-		}
+	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+	const selectionHandler = useMemo<() => void>(
+		() => () => {
+			const selection = document.getSelection();
+			if (selection === null || selection.type !== "Range") {
+				setBoxesMarkedForRedaction([]);
+				return;
+			}
 
-		/*
+			/*
 			TODO:
 				Check if range.commonAncestorContainer is child of pages container
 				if not check if pages are child of range.commonAncestor
 				if they are run function that splits range into subranges that are children of individual pages
 		*/
 
-		const ranges: Range[] = Array.from(
-			{ length: selection.rangeCount },
-			(rangeIndex: number) => selection.getRangeAt(rangeIndex),
-		);
+			const ranges: Range[] = Array.from(
+				{ length: selection.rangeCount },
+				(rangeIndex: number) => selection.getRangeAt(rangeIndex),
+			);
 
-		redactedRangesHandler(ranges);
-	}, [redactedRangesHandler]);
-
-	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
-	const wrappedSelectionHandler = useMemo<() => void>(
-		() => selectionHandler,
+			redactedRangesHandler(ranges);
+		},
 		undefined,
 	);
 
 	const toggleTextRedactor = () => {
 		if (!textRedactorSelected) {
 			setTextRedactorSelected(true);
-			document.addEventListener("selectionchange", wrappedSelectionHandler);
+			document.addEventListener("selectionchange", selectionHandler);
 		} else {
 			setTextRedactorSelected(false);
 			document.removeEventListener("selectionchange", selectionHandler);
@@ -377,41 +377,26 @@ function PdfRedactor(props: PdfRedactorProps) {
 	};
 
 	const Save = async () => {
-		const start = performance.now();
-
-		if (documentProxy === undefined || numPages === 0) {
+		if (
+			documentProxy === undefined ||
+			numPages === 0 ||
+			exporter.current === null
+		) {
 			return;
 		}
 
-		const exportedPdf = await exporter.current?.exportPdf();
-		if (exportedPdf === undefined) {
-			return;
-		}
-
-		console.log(`PDF Generation took ${performance.now() - start}ms`);
-
-		const pdfData = new Blob([await exportedPdf.save()]);
-
-		//const base64DataUri = await newDocument.saveAsBase64({ dataUri: true });
-
-		const end = performance.now();
-		console.log(`PDF Export took ${end - start}ms`);
-
-		FileSaver.saveAs(pdfData, "page1.pdf");
-
-		/*
-		const link = document.createElement("a");
-		link.setAttribute("download", "page1.pdf");
-		link.setAttribute("href", base64DataUri);
-		link.click();
-		*/
-		//const end = performance.now();
-		//console.log(`PDF Export took ${end-start}ms`);
+		exporter.current.confirmExport();
 	};
 
 	return (
 		<>
-			<ExportProvider contextRef={exporter} pdfDocument={documentProxy} boxes={boxesRedacted} numberOfPages={numPages} scale={pageScale}>
+			<ExportProvider
+				contextRef={exporter}
+				pdfDocument={documentProxy}
+				boxes={boxesRedacted}
+				numberOfPages={numPages}
+				scale={pageScale}
+			>
 				<Document
 					className={styles.document}
 					file={props.document}
@@ -467,6 +452,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 								}
 
 								setPageScale(currentScale);
+								pageScaleRef.current = currentScale;
 							}}
 						/>
 						<ToolbarItem.Spacer />

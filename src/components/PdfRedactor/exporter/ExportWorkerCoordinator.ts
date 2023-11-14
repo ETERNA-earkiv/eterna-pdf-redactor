@@ -2,10 +2,16 @@ import { PDFDocumentProxy } from "pdfjs-dist";
 import { ExportWorkerMessage } from "./types/ExportWorkerMessage";
 import { ExportWorkerResponse } from "./types/ExportWorkerResponse";
 import { ExportedXObjects } from "./types/ExportedXObjects";
-import { exportPdfWithWorkers } from "./exportPdfWithWorkers";
 import { exportPdfAsync } from "./exportPdfAsync";
+import { PDFDocument } from "pdf-lib";
+import appendExportedPage from "./appendExportedPage";
 
-export default class ExportWorkerCoordinator extends EventTarget{
+export type ExportProgressEvent = CustomEvent<{
+	numberOfPagesExported: number;
+	totalNumberOfPages: number;
+}>;
+
+export default class ExportWorkerCoordinator extends EventTarget {
 	private workers: Worker[] = [];
 	private workerIndex = 0;
 
@@ -181,9 +187,80 @@ export default class ExportWorkerCoordinator extends EventTarget{
 		scale: number,
 	) {
 		if (window.Worker) {
-			return await exportPdfWithWorkers(this, documentProxy, boxes, scale);
+			return await this.exportPdfWithWorkers(this, documentProxy, boxes, scale);
 		} else {
 			return await exportPdfAsync(documentProxy, boxes, scale);
 		}
+	}
+
+	private async exportPdfWithWorkers(
+		exporter: ExportWorkerCoordinator,
+		documentProxy: PDFDocumentProxy,
+		boxes: DOMRect[][],
+		scale: number,
+	) {
+		const start = performance.now();
+
+		const e = new CustomEvent("progress", {
+			detail: {
+				numberOfPagesExported: 0,
+				totalNumberOfPages: documentProxy.numPages,
+			},
+		});
+		this.dispatchEvent(e);
+
+		const newDocument = await PDFDocument.create();
+		const newPages = Array.from({ length: documentProxy.numPages }, (_) =>
+			newDocument.addPage(),
+		);
+
+		const exportPagePromises = [];
+
+		for (
+			let pageNumber = 1;
+			pageNumber <= documentProxy.numPages;
+			pageNumber++
+		) {
+			const exportPagePromise = exporter
+				.exportPage(pageNumber, boxes[pageNumber - 1], scale)
+				.then((exportedXObjects) =>
+					appendExportedPage(
+						exportedXObjects,
+						newDocument,
+						newPages[exportedXObjects.pageNumber - 1],
+					),
+				);
+
+			exportPagePromises.push(exportPagePromise);
+		}
+
+		const exportPageProgressPromises = new Map(
+			exportPagePromises.map((promise, index) => [index, promise]),
+		);
+
+		for (let i = 0; i < documentProxy.numPages; i++) {
+			const exportedPage = await Promise.any(
+				exportPageProgressPromises.values(),
+			);
+
+			if (exportedPage === undefined) {
+				return;
+			}
+
+			const e = new CustomEvent("progress", <ExportProgressEvent>{
+				detail: {
+					numberOfPagesExported: i + 1,
+					totalNumberOfPages: documentProxy.numPages,
+				},
+			});
+			this.dispatchEvent(e);
+
+			const pageIndex = exportedPage.pageNumber - 1;
+			exportPageProgressPromises.delete(pageIndex);
+		}
+
+		console.log(`exportPdf took ${performance.now() - start}ms`);
+
+		return newDocument;
 	}
 }

@@ -1,10 +1,10 @@
 export function areDOMRectsMergable(a: DOMRect, b: DOMRect, margin = 0) {
 	if (
 		(Math.abs(a.top - b.top) <= margin &&
-			Math.abs(a.height - b.height) <= margin &&
+			Math.abs(a.bottom - b.bottom) <= margin &&
 			!(a.left > b.right + margin || a.right < b.left - margin)) ||
 		(Math.abs(a.left - b.left) <= margin &&
-			Math.abs(a.width - b.width) <= margin &&
+			Math.abs(a.right - b.right) <= margin &&
 			!(a.top > b.bottom + margin || a.bottom < b.top - margin))
 	) {
 		return true;
