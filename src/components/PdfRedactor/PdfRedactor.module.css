@@ -168,8 +168,10 @@
     margin: 0 auto;
     box-shadow: 3px 3px 8px rgba(0, 0, 0, .1);
 }
-
-.viewport.textRedactorActive .page span::-moz-selection, .viewport.textRedactorActive .page span::selection {
+.viewport.textRedactorActive .page span::selection {
+    background: transparent;
+}
+.viewport.textRedactorActive .page span::-moz-selection {
     background: transparent;
 }
 

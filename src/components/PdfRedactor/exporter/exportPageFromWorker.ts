@@ -1,0 +1,79 @@
+import { PDFDocument } from "pdf-lib";
+import { PNG } from "pdf-lib/src/utils/png";
+import { PDFDocumentProxy } from "pdfjs-dist";
+import { pageToPng } from "./pageToPng";
+import { ExportedXObjects } from "./types/ExportedXObjects";
+
+async function exportPageFromWorker(
+	pdfDocument: PDFDocumentProxy,
+	pageNumber: number,
+	boxes: DOMRect[] | undefined,
+	scale: number,
+) {
+	const page = await pdfDocument.getPage(pageNumber);
+
+	const newDocument = await PDFDocument.create();
+
+	const imageBuffer = await pageToPng(page, boxes, scale);
+
+	if (imageBuffer === undefined) {
+		return;
+	}
+
+	const imageBytes = new Uint8Array(imageBuffer);
+	const image = PNG.load(imageBytes);
+
+	const xObjectDictAlphaChannel = image.alphaChannel
+		? {
+				Type: "XObject",
+				Subtype: "Image",
+				Height: image.height,
+				Width: image.width,
+				BitsPerComponent: image.bitsPerComponent,
+				ColorSpace: "DeviceGray",
+				Decode: [0, 1],
+		  }
+		: undefined;
+
+	const xObjectAlphaChannel = image.alphaChannel
+		? newDocument.context.flateStream(
+				image.alphaChannel,
+				xObjectDictAlphaChannel,
+		  )
+		: undefined;
+
+	const SMask = xObjectAlphaChannel
+		? newDocument.context.register(xObjectAlphaChannel)
+		: undefined;
+
+	const xObjectDictRGB = {
+		Type: "XObject",
+		Subtype: "Image",
+		BitsPerComponent: image.bitsPerComponent,
+		Width: image.width,
+		Height: image.height,
+		ColorSpace: "DeviceRGB",
+		SMask,
+	};
+
+	const xObjectRGB = newDocument.context.flateStream(
+		image.rgbChannel,
+		xObjectDictRGB,
+	);
+
+	return <ExportedXObjects>{
+		pageNumber,
+		width: page._pageInfo.view[2],
+		height: page._pageInfo.view[3],
+		xObjectAlphaChannel: {
+			data: xObjectAlphaChannel?.asUint8Array(),
+			dict: xObjectDictAlphaChannel,
+		},
+		xObjectRGB: {
+			data: xObjectRGB.asUint8Array(),
+			dict: xObjectDictRGB,
+		},
+	};
+}
+
+export { exportPageFromWorker };

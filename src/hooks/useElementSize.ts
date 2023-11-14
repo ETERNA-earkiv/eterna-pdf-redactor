@@ -7,7 +7,6 @@ export default function useElementSize<T extends HTMLElement = HTMLDivElement>(
 	const [size, setSize] = useState<DOMRect>(DOMRect.fromRect());
 
 	useLayoutEffect(() => {
-		console.log("layout yooo");
 		setSize(target.current?.getBoundingClientRect() ?? DOMRect.fromRect());
 	}, [target.current]);
 
