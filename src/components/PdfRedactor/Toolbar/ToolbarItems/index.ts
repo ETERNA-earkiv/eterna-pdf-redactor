@@ -1,4 +1,5 @@
 export { default as ApplyRedactions } from "./ApplyRedactions";
+export { default as BoxRedactor } from "./BoxRedactor";
 export { default as NextPage } from "./NextPage";
 export { default as PageSelector } from "./PageSelector";
 export { default as PreviousPage } from "./PreviousPage";

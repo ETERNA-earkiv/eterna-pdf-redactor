@@ -1,7 +1,5 @@
 import {
 	ChangeEvent,
-	RefObject,
-	createRef,
 	useCallback,
 	useEffect,
 	useMemo,
@@ -11,7 +9,6 @@ import {
 
 import { Document, Page, Outline, Thumbnail, pdfjs } from "react-pdf";
 import { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
-import { PDFDocument, PDFImage } from "pdf-lib";
 import clsx from "clsx";
 
 import { useMemoizedRefArray } from "../../hooks/useMemoizedRefArray";
@@ -25,11 +22,7 @@ import styles from "./PdfRedactor.module.css";
 import "./PdfRedactor.css";
 import { areDOMRectsMergable, mergeDOMRects } from "./DOMRectUtils";
 
-import FileSaver from "file-saver";
-import ExportContext, {
-	ExportContextType,
-	ExportProvider,
-} from "./exporter/ExportContext";
+import { ExportContextType, ExportProvider } from "./exporter/ExportContext";
 
 pdfjs.GlobalWorkerOptions.workerSrc = "pdfjs/pdf.worker.min.js";
 
@@ -64,6 +57,8 @@ function PdfRedactor(props: PdfRedactorProps) {
 	const [pageNumber, setPageNumber] = useState<number>(0);
 
 	const [textRedactorSelected, setTextRedactorSelected] =
+		useState<boolean>(false);
+	const [boxRedactorSelected, setBoxRedactorSelected] =
 		useState<boolean>(false);
 
 	const sidebar = useRef<HTMLDivElement>(null);
@@ -325,10 +320,13 @@ function PdfRedactor(props: PdfRedactorProps) {
 							DOMRect.fromRect();
 						const adjustedRect = DOMRect.fromRect(rect ?? undefined);
 
-						adjustedRect.x = (adjustedRect.x - pageRect.x) / pageScaleRef.current - 1;
-						adjustedRect.y = (adjustedRect.y - pageRect.y) / pageScaleRef.current - 1;
+						adjustedRect.x =
+							(adjustedRect.x - pageRect.x) / pageScaleRef.current - 1;
+						adjustedRect.y =
+							(adjustedRect.y - pageRect.y) / pageScaleRef.current - 1;
 						adjustedRect.width = adjustedRect.width / pageScaleRef.current + 2;
-						adjustedRect.height = adjustedRect.height / pageScaleRef.current + 2;
+						adjustedRect.height =
+							adjustedRect.height / pageScaleRef.current + 2;
 
 						return adjustedRect;
 					});
@@ -366,13 +364,187 @@ function PdfRedactor(props: PdfRedactorProps) {
 	);
 
 	const toggleTextRedactor = () => {
+		setBoxRedactorSelected(false);
+		setBoxesMarkedForRedaction([]);
+		window.getSelection()?.removeAllRanges();
 		if (!textRedactorSelected) {
 			setTextRedactorSelected(true);
 			document.addEventListener("selectionchange", selectionHandler);
 		} else {
 			setTextRedactorSelected(false);
 			document.removeEventListener("selectionchange", selectionHandler);
-			setBoxesMarkedForRedaction([]);
+		}
+	};
+
+	const [tempRedactBox, setTempRedactBox] = useState<DOMRect>();
+	const drawRedactBoxFrom = useRef<{ x: number; y: number }>();
+	const drawRedactBoxTo = useRef<{ x: number; y: number }>();
+	const boxRedactorMouseIsDown = useRef<boolean>(false);
+	const boxRedactorCurrentPage = useRef<number>();
+
+	const boxRedactorMouseMoveMouseUp = useCallback(
+		(e: MouseEvent) => {
+			if (
+				boxRedactorCurrentPage.current === undefined ||
+				drawRedactBoxFrom.current === undefined
+			) {
+				return;
+			}
+
+			const pageElement = pageElementRefs[boxRedactorCurrentPage.current - 1];
+			if (pageElement === undefined || pageElement.current === null) {
+				return;
+			}
+
+			const pageRect = pageElement.current.getBoundingClientRect();
+
+			const offsetX = e.pageX - pageRect.x;
+			const offsetY = e.pageY - pageRect.y;
+
+			const x = Math.min(Math.max(0, offsetX), pageElement.current.offsetWidth);
+
+			const y = Math.min(
+				Math.max(0, offsetY),
+				pageElement.current.offsetHeight,
+			);
+
+			const fromX = Math.min(x, drawRedactBoxFrom.current.x);
+			const fromY = Math.min(y, drawRedactBoxFrom.current.y);
+
+			const width = Math.max(x, drawRedactBoxFrom.current.x) - fromX;
+			const height = Math.max(y, drawRedactBoxFrom.current.y) - fromY;
+
+			const redactionBox = DOMRect.fromRect();
+			redactionBox.x = fromX / pageScaleRef.current;
+			redactionBox.y = fromY / pageScaleRef.current;
+			redactionBox.width = width / pageScaleRef.current;
+			redactionBox.height = height / pageScaleRef.current;
+
+			setTempRedactBox(redactionBox);
+
+			return { pageNumber: boxRedactorCurrentPage.current, x, y };
+		},
+		[pageElementRefs],
+	);
+
+	const boxRedactorMouseUpHandler = (e: MouseEvent) => {
+		document.documentElement.removeEventListener(
+			"mouseup",
+			boxRedactorMouseUpHandler,
+		);
+		document.documentElement.removeEventListener(
+			"mousemove",
+			boxRedactorMouseMoveHandler,
+		);
+		boxRedactorMouseIsDown.current = false;
+
+		if (drawRedactBoxFrom.current === undefined) {
+			drawRedactBoxFrom.current = undefined;
+			drawRedactBoxTo.current = undefined;
+			boxRedactorMouseIsDown.current = false;
+			boxRedactorCurrentPage.current = undefined;
+			return;
+		}
+
+		const coords = boxRedactorMouseMoveMouseUp(e);
+		setTempRedactBox(undefined);
+		if (coords === undefined) {
+			drawRedactBoxFrom.current = undefined;
+			drawRedactBoxTo.current = undefined;
+			boxRedactorMouseIsDown.current = false;
+			boxRedactorCurrentPage.current = undefined;
+			return;
+		}
+
+		const x = Math.min(coords.x, drawRedactBoxFrom.current.x);
+		const y = Math.min(coords.y, drawRedactBoxFrom.current.y);
+
+		const width = Math.max(coords.x, drawRedactBoxFrom.current.x) - x;
+		const height = Math.max(coords.y, drawRedactBoxFrom.current.y) - y;
+
+		const redactionBox = DOMRect.fromRect();
+		redactionBox.x = x / pageScaleRef.current;
+		redactionBox.y = y / pageScaleRef.current;
+		redactionBox.width = width / pageScaleRef.current;
+		redactionBox.height = height / pageScaleRef.current;
+
+		const boxes: DOMRect[][] = Array.from({ length: numPages }, () => []);
+		boxes[coords.pageNumber - 1].push(redactionBox);
+		setBoxesMarkedForRedaction(boxes);
+
+		drawRedactBoxFrom.current = undefined;
+		drawRedactBoxTo.current = undefined;
+		boxRedactorMouseIsDown.current = false;
+		boxRedactorCurrentPage.current = undefined;
+	};
+
+	const boxRedactorMouseMoveHandler = useCallback(
+		(e: MouseEvent) => {
+			if ((e.buttons & 1) !== 1) {
+				boxRedactorMouseUpHandler(e);
+				return;
+			}
+
+			if (drawRedactBoxFrom.current === undefined) {
+				return;
+			}
+
+			const coords = boxRedactorMouseMoveMouseUp(e);
+			if (coords !== undefined) {
+				drawRedactBoxTo.current = { x: coords.x, y: coords.y };
+			}
+		},
+		[boxRedactorMouseUpHandler, boxRedactorMouseMoveMouseUp],
+	);
+
+	const boxRedactorMouseDownHandler = useCallback(
+		(e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+			if (boxRedactorSelected) {
+				const pageElement = e.currentTarget as HTMLDivElement;
+				const pageNumberAttribute =
+					pageElement.getAttribute("data-page-number");
+
+				if (pageNumberAttribute === null) {
+					return;
+				}
+
+				boxRedactorMouseIsDown.current = true;
+
+				const pageNumber = parseInt(pageNumberAttribute, 10);
+
+				drawRedactBoxFrom.current = {
+					x: e.nativeEvent.offsetX,
+					y: e.nativeEvent.offsetY,
+				};
+
+				boxRedactorCurrentPage.current = pageNumber;
+
+				document.documentElement.addEventListener(
+					"mousemove",
+					boxRedactorMouseMoveHandler,
+				);
+				document.documentElement.addEventListener(
+					"mouseup",
+					boxRedactorMouseUpHandler,
+				);
+			}
+		},
+		[
+			boxRedactorSelected,
+			boxRedactorMouseMoveHandler,
+			boxRedactorMouseUpHandler,
+		],
+	);
+
+	const toggleBoxRedactor = () => {
+		setTextRedactorSelected(false);
+		setBoxesMarkedForRedaction([]);
+		window.getSelection()?.removeAllRanges();
+		if (!boxRedactorSelected) {
+			setBoxRedactorSelected(true);
+			document.removeEventListener("selectionchange", selectionHandler);
+		} else {
+			setBoxRedactorSelected(false);
 		}
 	};
 
@@ -473,12 +645,16 @@ function PdfRedactor(props: PdfRedactorProps) {
 								setBoxesMarkedForRedaction([]);
 							}}
 							disabled={
-								!textRedactorSelected || boxesMarkedForRedaction.length === 0
+								!(textRedactorSelected || boxRedactorSelected) || boxesMarkedForRedaction.length === 0
 							}
 						/>
 						<ToolbarItem.TextRedactor
 							onClick={toggleTextRedactor}
 							selected={textRedactorSelected}
+						/>
+						<ToolbarItem.BoxRedactor
+							onClick={toggleBoxRedactor}
+							selected={boxRedactorSelected}
 						/>
 						<ToolbarItem.Save
 							onClick={() => Save()}
@@ -522,6 +698,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 							className={clsx(
 								styles.viewport,
 								textRedactorSelected && styles.textRedactorActive,
+								boxRedactorSelected && styles.boxRedactorActive,
 							)}
 							onScroll={onScroll}
 						>
@@ -533,9 +710,22 @@ function PdfRedactor(props: PdfRedactorProps) {
 										pageNumber={index + 1}
 										onLoadSuccess={onPageLoadSuccess}
 										inputRef={pageElementRefs[index]}
+										onMouseDown={boxRedactorMouseDownHandler}
 										{...pageScaleOptions}
 									>
 										<div className={styles.markedForRedactionContainer}>
+											{tempRedactBox !== undefined &&
+												boxRedactorCurrentPage.current === index + 1 && (
+													<div
+														className={styles.tempMarkedForRedaction}
+														style={{
+															top: `${tempRedactBox.top * pageScale}px`,
+															left: `${tempRedactBox.left * pageScale}px`,
+															width: `${tempRedactBox.width * pageScale}px`,
+															height: `${tempRedactBox.height * pageScale}px`,
+														}}
+													/>
+												)}
 											{boxesMarkedForRedaction[index]?.map((rect, i) => {
 												return (
 													<div

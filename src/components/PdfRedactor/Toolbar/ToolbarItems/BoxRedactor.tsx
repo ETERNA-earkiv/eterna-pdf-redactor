@@ -1,0 +1,20 @@
+import BoxRedactorIcon from "../../../../assets/box-redactor.svg";
+
+type BoxRedactorProps = {
+	onClick: React.MouseEventHandler<HTMLButtonElement>;
+	selected?: boolean;
+};
+
+function BoxRedactor(props: BoxRedactorProps) {
+	return (
+		<button
+			type="button"
+			onClick={props.onClick}
+			data-selected={props.selected}
+		>
+			<img src={BoxRedactorIcon} alt="Redactor tool" height="24" />
+		</button>
+	);
+}
+
+export default BoxRedactor;
