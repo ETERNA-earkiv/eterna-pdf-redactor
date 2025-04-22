@@ -29,30 +29,19 @@ async function exportPdfAsync(
 		exportPagePromises.push(exportPagePromise);
 	}
 
-	console.log(exportPagePromises);
-
 	const exportPageProgressPromises = new Map(
 		exportPagePromises.map((promise, index) => [index, promise]),
 	);
 
 	for (let i = 0; i < documentProxy.numPages; i++) {
-		console.log(
-			"exportPageProgressPromises.size",
-			exportPageProgressPromises.size,
-		);
-
 		const exportedPage = await Promise.any(exportPageProgressPromises.values());
 		if (exportedPage === undefined) {
 			return;
 		}
 
 		const pageIndex = exportedPage.pageNumber - 1;
-		console.log("pageIndex", pageIndex);
-
 		exportPageProgressPromises.delete(pageIndex);
 	}
-
-	console.log(`Parallelizable part took ${performance.now() - start}ms`);
 
 	for (let i = 0; i < exportPagePromises.length; i++) {
 		const exportedPage = await exportPagePromises[i];

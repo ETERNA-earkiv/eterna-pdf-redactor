@@ -14,9 +14,6 @@ async function pageToPng(
 		Math.floor(viewport.width * outputScale),
 		Math.floor(viewport.height * outputScale),
 	);
-	//const canvas = document.createElement("canvas");
-	//canvas.width = Math.floor(viewport.width * outputScale);
-	//canvas.height = Math.floor(viewport.height * outputScale);
 
 	const context = canvas.getContext("2d");
 	if (context === null) {
@@ -47,21 +44,6 @@ async function pageToPng(
 		}
 	}
 
-	/*
-	const cavasToBlobPromise = () => {
-		return new Promise<Blob>((resolve, reject) => {
-			canvas.toBlob((blob) => {
-				if (blob === null) {
-					reject();
-				} else {
-					resolve(blob);
-				}
-			}, "image/png");
-		});
-	};
-    */
-
-	//const imageBlob = await cavasToBlobPromise();
 	const imageBlob = await canvas.convertToBlob({ type: "image/png" });
 	const imageBuffer = await imageBlob.arrayBuffer();
 

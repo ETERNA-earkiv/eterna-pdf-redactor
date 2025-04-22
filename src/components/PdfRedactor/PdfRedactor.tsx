@@ -7,7 +7,7 @@ import {
 	useState,
 } from "react";
 
-import { Document, Page, Outline, Thumbnail, pdfjs } from "react-pdf";
+import { Document, Page, Thumbnail, pdfjs } from "react-pdf";
 import { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 import clsx from "clsx";
 
@@ -112,16 +112,13 @@ function PdfRedactor(props: PdfRedactorProps) {
 					sidebar.current.clientHeight
 			)
 		) {
-			thumbnail.scrollIntoView();
+			sidebar.current.scrollTo({
+				top: thumbnail.offsetTop,
+				behavior: "smooth",
+			});
 		}
 	}, [pageNumber]);
 
-	/*
-	const pageProxyObjects: Array<PDFPageProxy | undefined> = useMemo(
-		() => Array.from({ length: numPages }, (_) => undefined),
-		[numPages],
-	);
-	*/
 	const [pageProxyObjects, setPageProxyObjects] = useState<PDFPageProxy[]>([]);
 
 	const pageElementRefs = useMemoizedRefArray<HTMLDivElement>(numPages, null);
@@ -145,18 +142,32 @@ function PdfRedactor(props: PdfRedactorProps) {
 		pageProxyObjects[pageNumber],
 	);
 
-	const onPageClick = useCallback(
-		(
-			event: React.MouseEvent<HTMLDivElement>,
-			page: PDFPageProxy | false | undefined,
-		) => console.log("Clicked a page", { event, page }),
-		[],
-	);
-
 	const goToPage = useCallback(
 		(pageNumber: number) => {
 			setIgnoreScrollEvents(true);
-			pageElementRefs[pageNumber - 1].current?.scrollIntoView();
+			const firstPageElementRef = pageElementRefs[0];
+			const pageElementRef = pageElementRefs[pageNumber - 1];
+			if (
+				viewport.current !== null &&
+				firstPageElementRef !== undefined &&
+				pageElementRef !== undefined &&
+				firstPageElementRef.current !== null &&
+				pageElementRef.current !== null
+			) {
+				const marginTop =
+					pageElementRef.current.offsetHeight < viewport.current.clientHeight
+						? Math.min(
+								firstPageElementRef.current.offsetTop,
+								viewport.current.clientHeight -
+									pageElementRef.current.offsetHeight,
+						  )
+						: 0;
+
+				viewport.current.scrollTo({
+					top: pageElementRef.current.offsetTop - marginTop,
+					behavior: "smooth",
+				});
+			}
 			setPageNumber(pageNumber);
 		},
 		[pageElementRefs],
@@ -207,7 +218,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 		}
 	};
 
-	const onScroll = (e: React.UIEvent<HTMLDivElement, UIEvent>) => {
+	const onScroll = () => {
 		if (ignoreScrollEvents === true || viewport.current === null) {
 			return;
 		}
@@ -654,7 +665,8 @@ function PdfRedactor(props: PdfRedactorProps) {
 								setBoxesMarkedForRedaction([]);
 							}}
 							disabled={
-								!(textRedactorSelected || boxRedactorSelected) || boxesMarkedForRedaction.length === 0
+								!(textRedactorSelected || boxRedactorSelected) ||
+								boxesMarkedForRedaction.length === 0
 							}
 						/>
 						<ToolbarItem.TextRedactor

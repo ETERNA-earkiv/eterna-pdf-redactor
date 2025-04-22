@@ -24,7 +24,6 @@ import type { PDFDocument } from "pdf-lib";
 import ExportWorkerCoordinator, {
 	ExportProgressEvent,
 } from "./ExportWorkerCoordinator";
-import FileSaver from "file-saver";
 
 export type ExportContextType = {
 	exportPdf: () => Promise<PDFDocument | undefined>;
@@ -161,7 +160,7 @@ export const ExportProvider: React.FC<ExportProviderProps> = ({
 		exportPdf().then(async (pdfDocument) => {
 			if (pdfDocument !== undefined) {
 				const pdfData = new Blob([await pdfDocument.save()]);
-				FileSaver.saveAs(pdfData, "page1.pdf");
+				window.PDFRedactor.save(pdfData);
 			}
 		});
 	};
