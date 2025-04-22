@@ -63,7 +63,7 @@ const options = {
 
 // biome-ignore lint/suspicious/noExplicitAny: <explanation>
 (self.document as any) = {
-	baseURI: "http://localhost:5173/",
+	baseURI: self.location.href,
 	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 	fonts: (self as any).fonts,
 };
@@ -72,9 +72,9 @@ const options = {
 (self.window as any) = {
 	location: {
 		get href() {
-            // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-            (self.window as any) = undefined;
-			return "http://localhost:5173/";
+			// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+			(self.window as any) = undefined;
+			return self.location.href;
 		},
 	},
 };
@@ -85,7 +85,7 @@ self.onmessage = async (e: MessageEvent<ExportWorkerMessage>) => {
 
 		pdfDocument = await pdfjs.getDocument({
 			data: pdfBuffer,
-			...options
+			...options,
 		}).promise;
 
 		self.postMessage(<ExportWorkerResponse>{ type: "loadDocument" });
