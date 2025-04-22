@@ -1,12 +1,14 @@
-import "./App.css";
+import { State } from "state-pool";
 import PdfRedactor from "./components/PdfRedactor";
 
-function App() {
-	return (
-		<>
-			<PdfRedactor document="WP232092.19-Whitepaper-RODA-5-Enterprise.pdf" />
-		</>
-	);
+type AppProps = {
+	urlState: State<string>;
+};
+
+function App({ urlState }: AppProps) {
+	const [url] = urlState.useState();
+
+	return <PdfRedactor document={url} />;
 }
 
 export default App;
