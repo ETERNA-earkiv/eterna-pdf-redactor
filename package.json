@@ -10,27 +10,27 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@emotion/react": "^11.11.1",
-    "@emotion/styled": "^11.11.0",
-    "@mui/material": "^5.14.17",
-    "@react-hook/resize-observer": "^1.2.6",
-    "clsx": "^2.0.0",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@mui/material": "^7.0.2",
+    "@react-hook/resize-observer": "^2.0.2",
+    "clsx": "^2.1.1",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "3.11.174",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-icons": "^4.11.0",
-    "react-pdf": "^7.5.1",
-    "state-pool": "^0.10.0"
+    "react-icons": "^5.5.0",
+    "react-pdf": "^7.7.3",
+    "state-pool": "^0.10.1"
   },
   "devDependencies": {
-    "@biomejs/biome": "1.3.3",
-    "@types/node": "^20.8.10",
-    "@types/react": "^18.2.15",
-    "@types/react-dom": "^18.2.7",
-    "@vitejs/plugin-react-swc": "^3.3.2",
-    "typescript": "^5.0.2",
-    "vite": "^4.4.5",
-    "vite-plugin-static-copy": "^0.17.0"
+    "@biomejs/biome": "1.9.4",
+    "@types/node": "^22.14.1",
+    "@types/react": "^18.2.36",
+    "@types/react-dom": "^18.2.14",
+    "@vitejs/plugin-react-swc": "^3.9.0",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.2",
+    "vite-plugin-static-copy": "^2.3.1"
   }
 }
