@@ -1,12 +1,22 @@
 <!doctype html>
 <html lang="sv">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PDF-maskering</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PDF-maskering</title>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const rootElement = document.getElementById("root");
+      PDFRedactor.setUrl("WP232092.19-Whitepaper-RODA-5-Enterprise.pdf");
+      PDFRedactor.render(rootElement);
+    });
+  </script>
+</body>
+
 </html>
