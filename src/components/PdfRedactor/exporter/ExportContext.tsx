@@ -32,7 +32,7 @@ export type ExportContextType = {
 
 type ExportProviderProps = {
 	children?: ReactNode;
-	contextRef?: React.RefObject<ExportContextType>;
+	contextRef?: React.RefObject<ExportContextType | null>;
 	pdfDocument: PDFDocumentProxy | undefined;
 	boxes: DOMRect[][];
 	scale: number;

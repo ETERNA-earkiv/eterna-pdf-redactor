@@ -25,7 +25,7 @@ import { areDOMRectsMergable, mergeDOMRects } from "./DOMRectUtils";
 import { ExportContextType, ExportProvider } from "./exporter/ExportContext";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-	`${import.meta.env.VITE_URL_PREFIX ?? ''}/pdfjs/pdf.worker.min.js`,
+	`${import.meta.env.VITE_URL_PREFIX ?? ''}/pdfjs/pdf.worker.min.mjs`,
 	import.meta.url,
 ).toString();
 
@@ -380,7 +380,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 
 			redactedRangesHandler(ranges);
 		},
-		undefined,
+		[undefined],
 	);
 
 	const toggleTextRedactor = () => {
@@ -397,10 +397,10 @@ function PdfRedactor(props: PdfRedactorProps) {
 	};
 
 	const [tempRedactBox, setTempRedactBox] = useState<DOMRect>();
-	const drawRedactBoxFrom = useRef<{ x: number; y: number }>();
-	const drawRedactBoxTo = useRef<{ x: number; y: number }>();
+	const drawRedactBoxFrom = useRef<{ x: number; y: number } | undefined>(undefined);
+	const drawRedactBoxTo = useRef<{ x: number; y: number } | undefined>(undefined);
 	const boxRedactorMouseIsDown = useRef<boolean>(false);
-	const boxRedactorCurrentPage = useRef<number>();
+	const boxRedactorCurrentPage = useRef<number | undefined>(undefined);
 
 	const boxRedactorMouseMoveMouseUp = useCallback(
 		(e: MouseEvent) => {

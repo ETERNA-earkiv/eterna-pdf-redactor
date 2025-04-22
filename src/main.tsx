@@ -1,5 +1,5 @@
-import React from "react";
-import ReactDOM from "react-dom/client";
+import { StrictMode } from "react";
+import { createRoot, Root } from "react-dom/client";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { createState } from "state-pool";
 
@@ -14,16 +14,16 @@ const lightTheme = createTheme({
 const urlState = createState("");
 
 class PDFRedactor {
-	private root: ReactDOM.Root | undefined;
+	private root: Root | undefined;
 
 	mount(rootElement: HTMLElement) {
-		this.root = ReactDOM.createRoot(rootElement);
+		this.root = createRoot(rootElement);
 		this.root.render(
-			<React.StrictMode>
+			<StrictMode>
 				<ThemeProvider theme={lightTheme}>
 					<PDFRedactorApp urlState={urlState} />
 				</ThemeProvider>
-			</React.StrictMode>
+			</StrictMode>,
 		);
 	}
 
@@ -43,10 +43,9 @@ class PDFRedactor {
 	}
 }
 
-
 declare global {
 	interface Window {
-		PDFRedactor: PDFRedactor
+		PDFRedactor: PDFRedactor;
 	}
 }
 

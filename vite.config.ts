@@ -9,7 +9,7 @@ const require = createRequire(import.meta.url);
 const pdfjsPath = path.dirname(require.resolve("pdfjs-dist/package.json"));
 const cMapsDir = path.join(pdfjsPath, "cmaps");
 const standardFontsDir = path.join(pdfjsPath, "standard_fonts");
-const pdfWorkerPath = path.join(pdfjsPath, "build/pdf.worker.min.js");
+const pdfWorkerPath = path.join(pdfjsPath, "build/pdf.worker.min.mjs");
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -27,6 +27,9 @@ export default defineConfig(({ mode }) => {
 			}),
 			react(),
 		],
+		worker: {
+			format: "es",
+		},
 		build: {
 			lib: !isDemo
 				? {
@@ -47,5 +50,8 @@ export default defineConfig(({ mode }) => {
 				"@": path.resolve(__dirname, "src"),
 			},
 		},
+		define: {
+			"process.env.NODE_ENV": JSON.stringify(mode),
+		}
 	};
 });

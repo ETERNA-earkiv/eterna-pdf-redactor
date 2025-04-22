@@ -30,7 +30,7 @@ interface PageProxyWithWidthHeight extends PDFPageProxy {
 
 type ScaleSelectorProps = {
 	onChange: (scale: typeof AllProps) => void;
-	viewport: React.RefObject<HTMLElement>;
+	viewport: React.RefObject<HTMLElement | null>;
 	pageProxy?: PageProxyWithWidthHeight;
 	pageNumber?: number;
 	numPages?: number;

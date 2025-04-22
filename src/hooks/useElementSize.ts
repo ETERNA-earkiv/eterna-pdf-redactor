@@ -2,7 +2,7 @@ import { useLayoutEffect, useState } from "react";
 import useResizeObserver from "@react-hook/resize-observer";
 
 export default function useElementSize<T extends HTMLElement = HTMLDivElement>(
-	target: React.RefObject<T>,
+	target: React.RefObject<T | null>,
 ) {
 	const [size, setSize] = useState<DOMRect>(DOMRect.fromRect());
 

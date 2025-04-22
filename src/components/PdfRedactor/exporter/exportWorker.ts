@@ -43,7 +43,7 @@ let pdfBuffer: Uint8Array = new Uint8Array();
 let pdfDocument: PDFDocumentProxy | undefined;
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-	`${import.meta.env.VITE_URL_PREFIX ?? ''}/pdfjs/pdf.worker.min.js`,
+	`${import.meta.env.VITE_URL_PREFIX ?? ''}/pdfjs/pdf.worker.min.mjs`,
 	import.meta.url,
 ).toString();
 
