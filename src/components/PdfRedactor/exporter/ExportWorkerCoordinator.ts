@@ -126,11 +126,10 @@ export default class ExportWorkerCoordinator extends EventTarget {
 			return Promise.all(workerPromises).then(() => {});
 		} else if (numberOfWorkers < this._numberOfWorkers) {
 			for (let i = this._numberOfWorkers - 1; i >= numberOfWorkers; i--) {
-				const worker: Worker = this.workers.splice(
-					this.workers.length - 1,
-					1,
-				)[0];
-				this.removeWorker(worker);
+				const worker: Worker | undefined = this.workers.pop();
+				if(worker) {
+					this.removeWorker(worker);
+				}
 			}
 
 			this._numberOfWorkers = numberOfWorkers;
@@ -140,9 +139,11 @@ export default class ExportWorkerCoordinator extends EventTarget {
 	}
 
 	public dispose() {
-		for (let i = 0; i < this.numberOfWorkers; i++) {
-			const worker: Worker = this.workers.splice(i, 1)[0];
-			this.removeWorker(worker);
+		for (let i = 0; i < this._numberOfWorkers; i++) {
+			const worker: Worker | undefined = this.workers.shift();
+			if(worker) {
+				this.removeWorker(worker);
+			}
 		}
 
 		this.pageNumberResolverMap.clear();
