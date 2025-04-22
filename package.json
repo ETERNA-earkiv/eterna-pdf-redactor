@@ -15,17 +15,16 @@
     "@mui/material": "^5.14.17",
     "@react-hook/resize-observer": "^1.2.6",
     "clsx": "^2.0.0",
-    "file-saver": "^2.0.5",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "3.11.174",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-icons": "^4.11.0",
-    "react-pdf": "^7.5.1"
+    "react-pdf": "^7.5.1",
+    "state-pool": "^0.10.0"
   },
   "devDependencies": {
     "@biomejs/biome": "1.3.3",
-    "@types/file-saver": "^2.0.7",
     "@types/node": "^20.8.10",
     "@types/react": "^18.2.15",
     "@types/react-dom": "^18.2.7",
