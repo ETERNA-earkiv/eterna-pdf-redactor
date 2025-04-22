@@ -3,7 +3,8 @@ import ReactDOM from "react-dom/client";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { createState } from "state-pool";
 
-import PDFRedactorApp from "./PDFRedactorApp";
+import "./index.css";
+import PDFRedactorApp from "../src/PDFRedactorApp";
 
 const lightTheme = createTheme({
 	palette: {

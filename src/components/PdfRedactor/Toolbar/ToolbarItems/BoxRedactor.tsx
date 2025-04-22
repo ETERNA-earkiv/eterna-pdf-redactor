@@ -7,7 +7,7 @@ type BoxRedactorProps = {
 
 function BoxRedactor(props: BoxRedactorProps) {
 	const imgSrc = new URL(
-		`${import.meta.env.VITE_URL_PREFIX}${BoxRedactorIcon}`,
+		`${import.meta.env.VITE_URL_PREFIX ?? ''}${BoxRedactorIcon}`,
 		import.meta.url,
 	).toString();
 

@@ -24,18 +24,25 @@ import { areDOMRectsMergable, mergeDOMRects } from "./DOMRectUtils";
 
 import { ExportContextType, ExportProvider } from "./exporter/ExportContext";
 
+const test = new URL(
+	`${import.meta.env.VITE_URL_PREFIX ?? ''}/pdfjs/pdf.worker.min.js`,
+	import.meta.url,
+).toString();
+
+console.log("Test: ", test)
+
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-	`${import.meta.env.VITE_URL_PREFIX}/pdfjs/pdf.worker.min.js`,
+	`${import.meta.env.VITE_URL_PREFIX ?? ''}/pdfjs/pdf.worker.min.js`,
 	import.meta.url,
 ).toString();
 
 const options = {
 	cMapUrl: new URL(
-		`${import.meta.env.VITE_URL_PREFIX}/pdfjs/cmaps/`,
+		`${import.meta.env.VITE_URL_PREFIX ?? ''}/pdfjs/cmaps/`,
 		import.meta.url,
 	).toString(),
 	standardFontDataUrl: new URL(
-		`${import.meta.env.VITE_URL_PREFIX}/pdfjs/standard_fonts/`,
+		`${import.meta.env.VITE_URL_PREFIX ?? ''}/pdfjs/standard_fonts/`,
 		import.meta.url,
 	).toString(),
 };

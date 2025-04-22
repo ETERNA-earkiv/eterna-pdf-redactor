@@ -13,7 +13,7 @@ export type ExportProgressEvent = CustomEvent<{
 	totalNumberOfPages: number;
 }>;
 
-const prefixedWorkerUrl = new URL(`${import.meta.env.VITE_URL_PREFIX}${exportWorkerUrl}`, import.meta.url);
+const prefixedWorkerUrl = new URL(`${import.meta.env.VITE_URL_PREFIX ?? ''}${exportWorkerUrl}`, import.meta.url);
 
 export default class ExportWorkerCoordinator extends EventTarget {
 	private workers: Worker[] = [];

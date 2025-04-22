@@ -9,12 +9,12 @@
 
 <body>
   <div id="root"></div>
-  <script type="module" src="/src/main.tsx"></script>
+  <script type="module" src="/main.tsx"></script>
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       const rootElement = document.getElementById("root");
       PDFRedactor.setUrl("WP232092.19-Whitepaper-RODA-5-Enterprise.pdf");
-      PDFRedactor.render(rootElement);
+      PDFRedactor.mount(rootElement);
     });
   </script>
 </body>

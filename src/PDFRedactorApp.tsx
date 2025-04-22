@@ -1,14 +1,14 @@
 import { State } from "state-pool";
 import PdfRedactor from "./components/PdfRedactor";
 
-type AppProps = {
+type PDFRedactorAppProps = {
 	urlState: State<string>;
 };
 
-function App({ urlState }: AppProps) {
+function PDFRedactorApp({ urlState }: PDFRedactorAppProps) {
 	const [url] = urlState.useState();
 
 	return <PdfRedactor document={url} />;
 }
 
-export default App;
+export default PDFRedactorApp;
