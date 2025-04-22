@@ -31,6 +31,8 @@ export default defineConfig(({ mode }) => {
 			format: "es",
 		},
 		build: {
+			sourcemap: false,
+			minify: 'terser',
 			lib: !isDemo
 				? {
 						entry: path.resolve(__dirname, "src/main.tsx"),
