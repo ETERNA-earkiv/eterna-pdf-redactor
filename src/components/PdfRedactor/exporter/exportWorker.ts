@@ -42,14 +42,23 @@ class CanvasFactory {
 let pdfBuffer: Uint8Array = new Uint8Array();
 let pdfDocument: PDFDocumentProxy | undefined;
 
-pdfjs.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.min.js";
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+	`${import.meta.env.VITE_URL_PREFIX}/pdfjs/pdf.worker.min.js`,
+	import.meta.url,
+).toString();
 
 const canvasFactory = new CanvasFactory();
 
 const options = {
-	cMapUrl: "/pdfjs/cmaps/",
-	standardFontDataUrl: "/pdfjs/standard_fonts/",
-    canvasFactory
+	cMapUrl: new URL(
+		`${import.meta.env.VITE_URL_PREFIX}/pdfjs/cmaps/`,
+		import.meta.url,
+	).toString(),
+	standardFontDataUrl: new URL(
+		`${import.meta.env.VITE_URL_PREFIX}/pdfjs/standard_fonts/`,
+		import.meta.url,
+	).toString(),
+	canvasFactory,
 };
 
 // biome-ignore lint/suspicious/noExplicitAny: <explanation>

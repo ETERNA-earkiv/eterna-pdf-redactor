@@ -24,11 +24,20 @@ import { areDOMRectsMergable, mergeDOMRects } from "./DOMRectUtils";
 
 import { ExportContextType, ExportProvider } from "./exporter/ExportContext";
 
-pdfjs.GlobalWorkerOptions.workerSrc = "pdfjs/pdf.worker.min.js";
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+	`${import.meta.env.VITE_URL_PREFIX}/pdfjs/pdf.worker.min.js`,
+	import.meta.url,
+).toString();
 
 const options = {
-	cMapUrl: "/pdfjs/cmaps/",
-	standardFontDataUrl: "/pdfjs/standard_fonts/",
+	cMapUrl: new URL(
+		`${import.meta.env.VITE_URL_PREFIX}/pdfjs/cmaps/`,
+		import.meta.url,
+	).toString(),
+	standardFontDataUrl: new URL(
+		`${import.meta.env.VITE_URL_PREFIX}/pdfjs/standard_fonts/`,
+		import.meta.url,
+	).toString(),
 };
 
 type File = React.ComponentProps<typeof Document>["file"];

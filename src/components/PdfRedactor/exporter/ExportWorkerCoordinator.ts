@@ -6,10 +6,14 @@ import { exportPdfAsync } from "./exportPdfAsync";
 import { PDFDocument } from "pdf-lib";
 import appendExportedPage from "./appendExportedPage";
 
+import exportWorkerUrl from './exportWorker?worker&url';
+
 export type ExportProgressEvent = CustomEvent<{
 	numberOfPagesExported: number;
 	totalNumberOfPages: number;
 }>;
+
+const prefixedWorkerUrl = new URL(`${import.meta.env.VITE_URL_PREFIX}${exportWorkerUrl}`, import.meta.url);
 
 export default class ExportWorkerCoordinator extends EventTarget {
 	private workers: Worker[] = [];
@@ -53,9 +57,7 @@ export default class ExportWorkerCoordinator extends EventTarget {
 	}
 
 	private createWorker() {
-		const worker = new Worker(new URL("./exportWorker.ts", import.meta.url), {
-			type: "module",
-		});
+		const worker = new Worker(prefixedWorkerUrl, { type: "module" });
 		worker.addEventListener("message", this.messageListener);
 		worker.addEventListener(
 			"message",

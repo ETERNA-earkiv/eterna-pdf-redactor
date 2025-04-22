@@ -6,13 +6,18 @@ type BoxRedactorProps = {
 };
 
 function BoxRedactor(props: BoxRedactorProps) {
+	const imgSrc = new URL(
+		`${import.meta.env.VITE_URL_PREFIX}${BoxRedactorIcon}`,
+		import.meta.url,
+	).toString();
+
 	return (
 		<button
 			type="button"
 			onClick={props.onClick}
 			data-selected={props.selected}
 		>
-			<img src={BoxRedactorIcon} alt="Redactor tool" height="24" />
+			<img src={imgSrc} alt="Redactor tool" height="24" />
 		</button>
 	);
 }
