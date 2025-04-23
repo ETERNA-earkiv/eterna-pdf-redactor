@@ -29,6 +29,11 @@ export default defineConfig(({ mode }) => {
 		],
 		worker: {
 			format: "es",
+			rollupOptions: {
+				output: {
+					entryFileNames: "[name].js",
+				},
+			},
 		},
 		build: {
 			sourcemap: false,
@@ -37,15 +42,8 @@ export default defineConfig(({ mode }) => {
 				? {
 						entry: path.resolve(__dirname, "src/main.tsx"),
 						name: "PDFRedactor",
-				  }
+					}
 				: undefined,
-			rollupOptions: {
-				output: {
-					entryFileNames: "assets/[name].js",
-					chunkFileNames: "assets/[name].js",
-					assetFileNames: "assets/[name].[ext]",
-				},
-			},
 		},
 		resolve: {
 			alias: {
@@ -54,6 +52,6 @@ export default defineConfig(({ mode }) => {
 		},
 		define: {
 			"process.env.NODE_ENV": JSON.stringify(mode),
-		}
+		},
 	};
 });
