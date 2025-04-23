@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>se.whitered.eterna</groupId>
+  <artifactId>pdfredactor</artifactId>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
+
+  <name>pdfredactor</name>
+  <url>http://www.example.com</url>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.release>17</maven.compiler.release>
+    <destDir>${project.build.outputDirectory}/META-INF/resources/webjars/${project.artifactId}/${project.version}</destDir>
+  </properties>
+
+  <dependencies>
+  </dependencies>
+
+  <build>
+    <plugins>
+
+      <plugin>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>1.7</version>
+        <executions>
+          <execution>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <echo message="Installing dependencies" />
+                <exec executable="pnpm" dir="${project.basedir}">
+                  <arg value="install" />
+                </exec>
+              </target>
+            </configuration>
+          </execution>
+          <execution>
+            <id>compile</id>
+            <phase>compile</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <echo message="Compiling project" />
+                <exec executable="pnpm" dir="${project.basedir}">
+                  <arg value="build" />
+                </exec>
+              </target>
+            </configuration>
+          </execution>
+          <execution>
+            <id>prepare</id>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <echo message="Preparing package" />
+                <copy todir="${destDir}">
+                  <fileset dir="${project.basedir}/dist" />
+                </copy>
+              </target>
+            </configuration>
+          </execution>
+          <execution>
+            <id>clean</id>
+            <phase>clean</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <echo message="Deleting ${project.basedir}/dist" />
+                <delete includeEmptyDirs="true" removeNotFollowedSymlinks="true">
+                  <fileset dir="${project.basedir}/dist" defaultexcludes="no" followsymlinks="false" erroronmissingdir="false" />
+                </delete>
+                <echo message="Deleting ${project.basedir}/node_modules" />
+                <delete includeEmptyDirs="true" removeNotFollowedSymlinks="true">
+                  <fileset dir="${project.basedir}/node_modules" defaultexcludes="no" followsymlinks="false" erroronmissingdir="false" />
+                </delete>
+              </target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>
