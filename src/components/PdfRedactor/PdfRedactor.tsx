@@ -24,6 +24,14 @@ import { areDOMRectsMergable, mergeDOMRects } from "./DOMRectUtils";
 
 import { type ExportContextType, ExportProvider } from "./exporter/ExportContext";
 
+const xxx = new URL ("./x.js", import.meta.url);
+
+console.log("xxx", xxx);
+
+console.log("document.currentScript.src", document.currentScript);
+
+console.log("import.meta.env.VITE_URL_PREFIX", import.meta.env.VITE_URL_PREFIX);
+
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 	`${import.meta.env.VITE_URL_PREFIX ?? ''}/pdfjs/pdf.worker.min.mjs`,
 	import.meta.url,
@@ -92,7 +100,6 @@ function PdfRedactor(props: PdfRedactorProps) {
 		};
 	}, [currentViewport]);
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
 	useEffect(() => {
 		if (pageNumber === 0 || sidebarVisible === false) {
 			return;
@@ -117,7 +124,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 				behavior: "smooth",
 			});
 		}
-	}, [pageNumber]);
+	}, [pageNumber, sidebarVisible]);
 
 	const [pageProxyObjects, setPageProxyObjects] = useState<PDFPageProxy[]>([]);
 
@@ -182,7 +189,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 
 	const onDocumentLoadSuccess = useCallback((pdfDocument: PDFDocumentProxy) => {
 		setDocumentProxy(pdfDocument);
-		setNumPages(pdfDocument.numPages);
+		setNumPages(pdfDocument._pdfInfo.numPages);
 		setPageNumber(1);
 	}, []);
 
@@ -275,7 +282,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 			for (let rangeIndex = 0; rangeIndex < ranges.length; rangeIndex++) {
 				const range = ranges[rangeIndex];
 
-				let pageIndex = NaN;
+				let pageIndex = Number.NaN;
 				let currentNode: Node | Element | null = range.commonAncestorContainer;
 
 				do {
@@ -283,7 +290,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 						currentNode.nodeType === Node.ELEMENT_NODE &&
 						(currentNode as Element).hasAttribute("data-page-number")
 					) {
-						pageIndex = parseInt(
+						pageIndex = Number.parseInt(
 							(currentNode as Element).getAttribute(
 								"data-page-number",
 							) as string,
@@ -357,7 +364,6 @@ function PdfRedactor(props: PdfRedactorProps) {
 		[numPages, pageElementRefs],
 	);
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
 	const selectionHandler = useMemo<() => void>(
 		() => () => {
 			const selection = document.getSelection();
@@ -380,7 +386,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 
 			redactedRangesHandler(ranges);
 		},
-		[undefined],
+		[redactedRangesHandler],
 	);
 
 	const toggleTextRedactor = () => {
@@ -447,7 +453,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 		[pageElementRefs],
 	);
 
-	const boxRedactorMouseUpHandler = (e: MouseEvent) => {
+	const boxRedactorMouseUpHandler = useCallback((e: MouseEvent) => {
 		document.documentElement.removeEventListener(
 			"mouseup",
 			boxRedactorMouseUpHandler,
@@ -496,7 +502,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 		drawRedactBoxTo.current = undefined;
 		boxRedactorMouseIsDown.current = false;
 		boxRedactorCurrentPage.current = undefined;
-	};
+	}, [boxRedactorMouseMoveMouseUp, numPages]);
 
 	const boxRedactorMouseMoveHandler = useCallback(
 		(e: MouseEvent) => {
@@ -530,7 +536,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 
 				boxRedactorMouseIsDown.current = true;
 
-				const pageNumber = parseInt(pageNumberAttribute, 10);
+				const pageNumber = Number.parseInt(pageNumberAttribute, 10);
 
 				drawRedactBoxFrom.current = {
 					x: e.nativeEvent.offsetX,
@@ -611,7 +617,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 						/>
 						<ToolbarItem.PageSelector
 							onChange={(e: ChangeEvent<HTMLInputElement>) =>
-								goToPage(parseInt(e.target.value, 10))
+								goToPage(Number.parseInt(e.target.value, 10))
 							}
 							pageNumber={pageNumber}
 							numPages={numPages}
