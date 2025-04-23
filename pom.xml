@@ -22,7 +22,6 @@
 
   <build>
     <plugins>
-
       <plugin>
         <artifactId>maven-antrun-plugin</artifactId>
         <version>1.7</version>
@@ -86,6 +85,10 @@
                 <echo message="Deleting ${project.basedir}/node_modules" />
                 <delete includeEmptyDirs="true" removeNotFollowedSymlinks="true">
                   <fileset dir="${project.basedir}/node_modules" defaultexcludes="no" followsymlinks="false" erroronmissingdir="false" />
+                </delete>
+                <echo message="Deleting ${project.basedir}/target" />
+                <delete includeEmptyDirs="true" removeNotFollowedSymlinks="true">
+                  <fileset dir="${project.basedir}/target" defaultexcludes="no" followsymlinks="false" erroronmissingdir="false" />
                 </delete>
               </target>
             </configuration>
