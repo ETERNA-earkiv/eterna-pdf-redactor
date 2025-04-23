@@ -1,4 +1,4 @@
-import { ExportedXObjects } from "./ExportedXObjects";
+import type { ExportedXObjects } from "./ExportedXObjects";
 
 type SetBufferResponse = {
 	type: "loadDocument";

@@ -1,7 +1,7 @@
-import { PDFDocument, PDFImage, PDFPage, PDFRef, PngEmbedder } from "pdf-lib";
-import { PDFPageProxy } from "pdfjs-dist";
+import { PDFImage, PngEmbedder, PDFPage, type PDFDocument, type PDFRef } from "pdf-lib";
+import type { PDFPageProxy } from "pdfjs-dist";
 import { pageToPng } from "./pageToPng";
-import { ExportedPage } from "./types/ExportedPage";
+import type { ExportedPage } from "./types/ExportedPage";
 
 interface PageProxyWithWidthHeight extends PDFPageProxy {
     width: number;

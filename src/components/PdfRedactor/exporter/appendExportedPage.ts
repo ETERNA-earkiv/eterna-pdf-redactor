@@ -1,5 +1,5 @@
-import { PDFDocument, PDFImage, PDFPage, PDFRef, PngEmbedder } from "pdf-lib";
-import { ExportedXObjects } from "./types/ExportedXObjects";
+import { PDFImage, type PDFDocument, type PDFPage, type PDFRef, type PngEmbedder } from "pdf-lib";
+import type { ExportedXObjects } from "./types/ExportedXObjects";
 import ExistingPngEmbedder from "./ExistingPngEmbedder";
 
 function appendExportedPage(exportedXObjects: ExportedXObjects, pdfDocument: PDFDocument, pdfPage: PDFPage) {

@@ -1,4 +1,4 @@
-import { PDFImage, PDFPage } from "pdf-lib";
+import type { PDFImage, PDFPage } from "pdf-lib";
 
 export interface ExportedPage {
     page: PDFPage,

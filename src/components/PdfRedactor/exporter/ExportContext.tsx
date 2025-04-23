@@ -1,6 +1,6 @@
 import {
-	MutableRefObject,
-	ReactNode,
+	type MutableRefObject,
+	type ReactNode,
 	createContext,
 	useContext,
 	useEffect,
@@ -16,13 +16,15 @@ import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
-import LinearProgress, { linearProgressClasses } from "@mui/material/LinearProgress";
+import LinearProgress, {
+	linearProgressClasses,
+} from "@mui/material/LinearProgress";
 
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { PDFDocument } from "pdf-lib";
 
 import ExportWorkerCoordinator, {
-	ExportProgressEvent,
+	type ExportProgressEvent,
 } from "./ExportWorkerCoordinator";
 
 export type ExportContextType = {
@@ -175,14 +177,14 @@ export const ExportProvider: React.FC<ExportProviderProps> = ({
 		height: 10,
 		borderRadius: 5,
 		[`&.${linearProgressClasses.colorPrimary}`]: {
-		  backgroundColor: theme.palette.grey[200],
+			backgroundColor: theme.palette.grey[200],
 		},
 		[`& .${linearProgressClasses.bar}`]: {
-		  borderRadius: 5,
-		  backgroundColor: '#1a90ff',
-		  transition: '100ms'
+			borderRadius: 5,
+			backgroundColor: "#1a90ff",
+			transition: "100ms",
 		},
-	  }));
+	}));
 
 	return (
 		<ExportContext.Provider value={value}>

@@ -1,4 +1,4 @@
-import { PDFDocumentProxy } from "pdfjs-dist";
+import type { PDFDocumentProxy } from "pdfjs-dist";
 import { PDFDocument } from "pdf-lib";
 import { exportPage } from "./exportPage";
 

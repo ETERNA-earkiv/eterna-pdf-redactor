@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { FiMinus, FiPlus } from "react-icons/fi";
 import useElementSize from "../../../../hooks/useElementSize";
-import { PDFPageProxy } from "pdfjs-dist";
+import type { PDFPageProxy } from "pdfjs-dist";
 
 const ScaleProps: {
 	width: number | undefined;

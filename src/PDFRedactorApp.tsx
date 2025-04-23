@@ -1,4 +1,4 @@
-import { State } from "state-pool";
+import type { State } from "state-pool";
 import PdfRedactor from "./components/PdfRedactor";
 
 type PDFRedactorAppProps = {

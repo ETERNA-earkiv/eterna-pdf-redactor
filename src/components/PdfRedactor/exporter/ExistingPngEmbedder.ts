@@ -1,4 +1,4 @@
-import { PDFRef, PngEmbedder } from "pdf-lib";
+import { type PDFRef, PngEmbedder } from "pdf-lib";
 
 class ExistingPngEmbedder {
 	readonly rgbRef: PDFRef;

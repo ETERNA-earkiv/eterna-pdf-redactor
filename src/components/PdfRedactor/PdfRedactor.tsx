@@ -1,5 +1,5 @@
 import {
-	ChangeEvent,
+	type ChangeEvent,
 	useCallback,
 	useEffect,
 	useMemo,
@@ -8,7 +8,7 @@ import {
 } from "react";
 
 import { Document, Page, Thumbnail, pdfjs } from "react-pdf";
-import { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
+import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 import clsx from "clsx";
 
 import { useMemoizedRefArray } from "../../hooks/useMemoizedRefArray";
@@ -22,7 +22,7 @@ import styles from "./PdfRedactor.module.css";
 import "./PdfRedactor.css";
 import { areDOMRectsMergable, mergeDOMRects } from "./DOMRectUtils";
 
-import { ExportContextType, ExportProvider } from "./exporter/ExportContext";
+import { type ExportContextType, ExportProvider } from "./exporter/ExportContext";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 	`${import.meta.env.VITE_URL_PREFIX ?? ''}/pdfjs/pdf.worker.min.mjs`,

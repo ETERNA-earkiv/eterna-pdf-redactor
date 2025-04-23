@@ -1,12 +1,12 @@
-import { PDFDocumentProxy } from "pdfjs-dist";
-import { ExportWorkerMessage } from "./types/ExportWorkerMessage";
-import { ExportWorkerResponse } from "./types/ExportWorkerResponse";
-import { ExportedXObjects } from "./types/ExportedXObjects";
+import type { PDFDocumentProxy } from "pdfjs-dist";
+import type { ExportWorkerMessage } from "./types/ExportWorkerMessage";
+import type { ExportWorkerResponse } from "./types/ExportWorkerResponse";
+import type { ExportedXObjects } from "./types/ExportedXObjects";
 import { exportPdfAsync } from "./exportPdfAsync";
 import { PDFDocument } from "pdf-lib";
 import appendExportedPage from "./appendExportedPage";
 
-import exportWorkerUrl from './exportWorker?worker&url';
+import exportWorkerUrl from './export-worker?worker&url';
 
 export type ExportProgressEvent = CustomEvent<{
 	numberOfPagesExported: number;

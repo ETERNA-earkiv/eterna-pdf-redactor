@@ -1,8 +1,8 @@
 import { pdfjs } from "react-pdf";
-import { PDFDocumentProxy } from "pdfjs-dist";
-import { ExportWorkerMessage } from "./types/ExportWorkerMessage";
+import type { PDFDocumentProxy } from "pdfjs-dist";
+import type { ExportWorkerMessage } from "./types/ExportWorkerMessage";
 import { exportPageFromWorker } from "./exportPageFromWorker";
-import { ExportWorkerResponse } from "./types/ExportWorkerResponse";
+import type { ExportWorkerResponse } from "./types/ExportWorkerResponse";
 
 interface CanvasAndContext {
 	canvas: OffscreenCanvas | null;

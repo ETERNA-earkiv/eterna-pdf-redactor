@@ -1,4 +1,4 @@
-import { PDFRef } from "pdf-lib";
+import type { PDFRef } from "pdf-lib";
 
 type XObjectDict = {
 	Type: "XObject";

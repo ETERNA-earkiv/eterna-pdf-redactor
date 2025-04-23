@@ -1,8 +1,8 @@
 import { PDFDocument } from "pdf-lib";
 import { PNG } from "pdf-lib/src/utils/png";
-import { PDFDocumentProxy } from "pdfjs-dist";
+import type { PDFDocumentProxy } from "pdfjs-dist";
 import { pageToPng } from "./pageToPng";
-import { ExportedXObjects } from "./types/ExportedXObjects";
+import type { ExportedXObjects } from "./types/ExportedXObjects";
 
 async function exportPageFromWorker(
 	pdfDocument: PDFDocumentProxy,

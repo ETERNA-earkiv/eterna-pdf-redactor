@@ -1,7 +1,7 @@
-import { ReactElement } from "react";
+import type { ReactElement } from "react";
 import { IconContext } from "react-icons";
 
-import * as ToolbarItems from "./ToolbarItems";
+import type * as ToolbarItems from "./ToolbarItems";
 import styles from "./Toolbar.module.css";
 
 type ToolbarItemsType = typeof ToolbarItems;
