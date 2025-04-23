@@ -4,12 +4,12 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>se.whitered.eterna</groupId>
-  <artifactId>pdfredactor</artifactId>
+  <artifactId>pdf-redactor</artifactId>
   <version>1.0.0</version>
   <packaging>jar</packaging>
 
-  <name>pdfredactor</name>
-  <url>http://www.example.com</url>
+  <name>pdf-redactor</name>
+  <url>https://whitered.se/eterna-e-arkiv/</url>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
