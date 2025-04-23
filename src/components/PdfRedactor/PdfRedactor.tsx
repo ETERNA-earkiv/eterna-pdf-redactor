@@ -24,14 +24,6 @@ import { areDOMRectsMergable, mergeDOMRects } from "./DOMRectUtils";
 
 import { type ExportContextType, ExportProvider } from "./exporter/ExportContext";
 
-const xxx = new URL ("./x.js", import.meta.url);
-
-console.log("xxx", xxx);
-
-console.log("document.currentScript.src", document.currentScript);
-
-console.log("import.meta.env.VITE_URL_PREFIX", import.meta.env.VITE_URL_PREFIX);
-
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 	`${import.meta.env.VITE_URL_PREFIX ?? ''}/pdfjs/pdf.worker.min.mjs`,
 	import.meta.url,
