@@ -6,14 +6,17 @@ import { exportPdfAsync } from "./exportPdfAsync";
 import { PDFDocument } from "pdf-lib";
 import appendExportedPage from "./appendExportedPage";
 
-import exportWorkerUrl from './export-worker?worker&url';
+import exportWorkerUrl from "./export-worker?worker&url";
 
 export type ExportProgressEvent = CustomEvent<{
 	numberOfPagesExported: number;
 	totalNumberOfPages: number;
 }>;
 
-const prefixedWorkerUrl = new URL(`${import.meta.env.VITE_URL_PREFIX ?? ''}${exportWorkerUrl}`, import.meta.url);
+const prefixedWorkerUrl = new URL(
+	`${import.meta.env.VITE_URL_PREFIX ?? ""}${exportWorkerUrl}`,
+	import.meta.url,
+);
 
 export default class ExportWorkerCoordinator extends EventTarget {
 	private workers: Worker[] = [];
@@ -124,10 +127,11 @@ export default class ExportWorkerCoordinator extends EventTarget {
 			);
 
 			return Promise.all(workerPromises).then(() => {});
+			// biome-ignore lint/style/noUselessElse: <explanation>
 		} else if (numberOfWorkers < this._numberOfWorkers) {
 			for (let i = this._numberOfWorkers - 1; i >= numberOfWorkers; i--) {
 				const worker: Worker | undefined = this.workers.pop();
-				if(worker) {
+				if (worker) {
 					this.removeWorker(worker);
 				}
 			}
@@ -141,7 +145,7 @@ export default class ExportWorkerCoordinator extends EventTarget {
 	public dispose() {
 		for (let i = 0; i < this._numberOfWorkers; i++) {
 			const worker: Worker | undefined = this.workers.shift();
-			if(worker) {
+			if (worker) {
 				this.removeWorker(worker);
 			}
 		}
@@ -191,9 +195,8 @@ export default class ExportWorkerCoordinator extends EventTarget {
 	) {
 		if (window.Worker) {
 			return await this.exportPdfWithWorkers(this, documentProxy, boxes, scale);
-		} else {
-			return await exportPdfAsync(documentProxy, boxes, scale);
 		}
+		return await exportPdfAsync(documentProxy, boxes, scale);
 	}
 
 	private async exportPdfWithWorkers(
