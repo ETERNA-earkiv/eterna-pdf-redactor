@@ -23,7 +23,7 @@ class PDFRedactor {
 				<ThemeProvider theme={lightTheme}>
 					<PDFRedactorApp urlState={urlState} />
 				</ThemeProvider>
-			</StrictMode>,
+			</StrictMode>
 		);
 	}
 
