@@ -32,7 +32,7 @@ export default defineConfig(({ mode }) => {
 		},
 		build: {
 			sourcemap: false,
-			minify: 'terser',
+			minify: "terser",
 			lib: !isDemo
 				? {
 						entry: path.resolve(__dirname, "src/main.tsx"),
