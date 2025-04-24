@@ -43,21 +43,18 @@ let pdfBuffer: Uint8Array = new Uint8Array();
 let pdfDocument: PDFDocumentProxy | undefined;
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-	`${import.meta.env.VITE_URL_PREFIX ?? ''}/pdfjs/pdf.worker.min.mjs`,
+	/* @vite-ignore */ "pdfjs/pdf.worker.min.mjs",
 	import.meta.url,
-).toString();
+).href;
 
 const canvasFactory = new CanvasFactory();
 
 const options = {
-	cMapUrl: new URL(
-		`${import.meta.env.VITE_URL_PREFIX ?? ''}/pdfjs/cmaps/`,
-		import.meta.url,
-	).toString(),
+	cMapUrl: new URL(/* @vite-ignore */ "pdfjs/cmaps/", import.meta.url).href,
 	standardFontDataUrl: new URL(
-		`${import.meta.env.VITE_URL_PREFIX ?? ''}/pdfjs/standard_fonts/`,
+		/* @vite-ignore */ "pdfjs/standard_fonts/",
 		import.meta.url,
-	).toString(),
+	).href,
 	canvasFactory,
 };
 

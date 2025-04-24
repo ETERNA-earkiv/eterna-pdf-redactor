@@ -6,10 +6,7 @@ type TextRedactorProps = {
 };
 
 function TextRedactor(props: TextRedactorProps) {
-	const imgSrc = new URL(
-		`${import.meta.env.VITE_URL_PREFIX ?? ''}${TextRedactorIcon}`,
-		import.meta.url,
-	).toString();
+	const imgSrc = new URL(TextRedactorIcon, import.meta.url).href;
 
 	return (
 		<button
