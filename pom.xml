@@ -11,6 +11,34 @@
   <name>pdf-redactor</name>
   <url>https://whitered.se/eterna-e-arkiv/</url>
 
+  <scm>
+    <url>https://github.com/ETERNA-earkiv/eterna-pdf-redactor</url>
+  </scm>
+
+  <organization>
+    <name>White Red Consulting AB</name>
+    <url>https://www.whitered.se/</url>
+  </organization>
+
+  <distributionManagement>
+    <repository>
+      <id>github</id>
+      <name>GitHub Packages</name>
+      <url>https://maven.pkg.github.com/ETERNA-earkiv/eterna-pdf-redactor</url>
+    </repository>
+  </distributionManagement>
+
+  <developers>
+    <developer>
+      <id>filiph-schaaf</id>
+      <name>Filiph Schaaf</name>
+      <email>filiph.schaaf@whitered.se</email>
+      <organization>White Red Consulting AB</organization>
+      <organizationUrl>https://www.whitered.se/</organizationUrl>
+      <timezone>0</timezone>
+    </developer>
+  </developers>
+
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.release>17</maven.compiler.release>
