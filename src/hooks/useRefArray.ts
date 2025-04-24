@@ -1,4 +1,4 @@
-import { MutableRefObject, RefObject, createRef } from "react";
+import { type MutableRefObject, type RefObject, createRef } from "react";
 
 // convenience overload for refs given as a ref prop as they typically start with a null value
 /**

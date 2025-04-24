@@ -1,4 +1,4 @@
-import { MutableRefObject, RefObject, useMemo } from "react";
+import { type MutableRefObject, type RefObject, useMemo } from "react";
 import { useRefArray } from "./useRefArray";
 
 // convenience overload for refs given as a ref prop as they typically start with a null value

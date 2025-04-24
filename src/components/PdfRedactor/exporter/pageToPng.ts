@@ -1,4 +1,4 @@
-import { PDFPageProxy } from "pdfjs-dist";
+import type { PDFPageProxy } from "pdfjs-dist";
 
 async function pageToPng(
 	page: PDFPageProxy,
