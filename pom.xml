@@ -5,7 +5,7 @@
 
   <groupId>se.whitered.eterna</groupId>
   <artifactId>pdf-redactor</artifactId>
-  <version>1.0.1</version>
+  <version>1.0.2</version>
   <packaging>jar</packaging>
 
   <name>pdf-redactor</name>
