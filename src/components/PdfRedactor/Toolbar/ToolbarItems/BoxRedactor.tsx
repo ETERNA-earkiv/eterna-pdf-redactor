@@ -13,6 +13,7 @@ function BoxRedactor(props: BoxRedactorProps) {
 			type="button"
 			onClick={props.onClick}
 			data-selected={props.selected}
+			title="Maskera område"
 		>
 			<img src={imgSrc} alt="Redactor tool" height="24" />
 		</button>

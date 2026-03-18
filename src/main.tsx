@@ -33,12 +33,12 @@ class PDFRedactor {
 
 	setUrl = (url: string) => urlState.setValue(url);
 
-	save(_: Blob) {
+	save(_: Blob): Promise<boolean> | boolean {
 		console.log("save callback is not set");
 		return false;
 	}
 
-	setSaveCallback(callback: (pdfData: Blob) => boolean) {
+	setSaveCallback(callback: (pdfData: Blob) => Promise<boolean> | boolean) {
 		this.save = callback;
 	}
 }

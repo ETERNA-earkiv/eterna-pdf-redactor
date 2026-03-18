@@ -7,6 +7,11 @@ import {
 	useState,
 } from "react";
 
+import Button from "@mui/material/Button";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogContentText from "@mui/material/DialogContentText";
 import { Document, Page, Thumbnail, pdfjs } from "react-pdf";
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 import clsx from "clsx";
@@ -58,6 +63,37 @@ interface PageProxyWithWidthHeight extends PDFPageProxy {
 	originalWidth: number;
 	originalHeight: number;
 }
+
+type RedactionHistoryEntry = {
+	pageIndex: number;
+	box: DOMRect;
+};
+
+const cloneDOMRect = (rect: DOMRect): DOMRect =>
+	DOMRect.fromRect({
+		x: rect.x,
+		y: rect.y,
+		width: rect.width,
+		height: rect.height,
+	});
+
+const hasAnyBoxes = (boxes: DOMRect[][]): boolean =>
+	boxes.some((pageBoxes) => pageBoxes.length > 0);
+
+const createRedactionHistoryEntries = (
+	boxesMarkedForRedaction: DOMRect[][],
+): RedactionHistoryEntry[] => {
+	const entries: RedactionHistoryEntry[] = [];
+
+	for (let pageIndex = 0; pageIndex < boxesMarkedForRedaction.length; pageIndex++) {
+		const pageBoxes = boxesMarkedForRedaction[pageIndex] ?? [];
+		for (let i = 0; i < pageBoxes.length; i++) {
+			entries.push({ pageIndex, box: cloneDOMRect(pageBoxes[i]) });
+		}
+	}
+
+	return entries;
+};
 
 function PdfRedactor(props: PdfRedactorProps) {
 	const [documentProxy, setDocumentProxy] = useState<PDFDocumentProxy>();
@@ -263,6 +299,86 @@ function PdfRedactor(props: PdfRedactorProps) {
 		DOMRect[][]
 	>([]);
 	const [boxesRedacted, setBoxesRedacted] = useState<DOMRect[][]>([]);
+	const [redactionHistory, setRedactionHistory] = useState<RedactionHistoryEntry[]>(
+		[],
+	);
+	const [redoHistory, setRedoHistory] = useState<RedactionHistoryEntry[]>([]);
+	const [resetDialogOpen, setResetDialogOpen] = useState<boolean>(false);
+
+	const undo = useCallback(() => {
+		setBoxesMarkedForRedaction([]);
+		const lastEntry = redactionHistory[redactionHistory.length - 1];
+		if (lastEntry === undefined) {
+			return;
+		}
+
+		setBoxesRedacted((previousBoxesRedacted) => {
+			const nextBoxesRedacted = previousBoxesRedacted.map((pageBoxes) => [
+				...pageBoxes,
+			]);
+			const pageBoxes = nextBoxesRedacted[lastEntry.pageIndex] ?? [];
+			if (pageBoxes.length > 0) {
+				pageBoxes.pop();
+			}
+
+			nextBoxesRedacted[lastEntry.pageIndex] = pageBoxes;
+			return nextBoxesRedacted;
+		});
+		setRedactionHistory((previousHistory) =>
+			previousHistory.slice(0, previousHistory.length - 1),
+		);
+		setRedoHistory((previousRedoHistory) => [
+			...previousRedoHistory,
+			{
+				pageIndex: lastEntry.pageIndex,
+				box: cloneDOMRect(lastEntry.box),
+			},
+		]);
+	}, [redactionHistory]);
+
+	const redo = useCallback(() => {
+		const lastEntry = redoHistory[redoHistory.length - 1];
+		if (lastEntry === undefined) {
+			return;
+		}
+
+		setBoxesRedacted((previousBoxesRedacted) => {
+			const nextBoxesRedacted = previousBoxesRedacted.map((pageBoxes) => [
+				...pageBoxes,
+			]);
+			const pageBoxes = nextBoxesRedacted[lastEntry.pageIndex] ?? [];
+			pageBoxes.push(cloneDOMRect(lastEntry.box));
+			nextBoxesRedacted[lastEntry.pageIndex] = pageBoxes;
+			return nextBoxesRedacted;
+		});
+		setRedactionHistory((previousHistory) => [
+			...previousHistory,
+			{
+				pageIndex: lastEntry.pageIndex,
+				box: cloneDOMRect(lastEntry.box),
+			},
+		]);
+		setRedoHistory((previousRedoHistory) =>
+			previousRedoHistory.slice(0, previousRedoHistory.length - 1),
+		);
+	}, [redoHistory]);
+
+	const onResetDialogOpen = useCallback(() => {
+		setResetDialogOpen(true);
+	}, []);
+
+	const onResetDialogClose = useCallback(() => {
+		setResetDialogOpen(false);
+	}, []);
+
+	const resetRedactions = useCallback(() => {
+		setBoxesRedacted([]);
+		setRedactionHistory([]);
+		setRedoHistory([]);
+		setBoxesMarkedForRedaction([]);
+		setResetDialogOpen(false);
+	}, []);
+
 
 	const redactedRangesHandler = useCallback(
 		(ranges: Range[]) => {
@@ -655,23 +771,33 @@ function PdfRedactor(props: PdfRedactorProps) {
 						<ToolbarItem.Spacer />
 						<ToolbarItem.ApplyRedactions
 							onClick={() => {
-								const redacted: DOMRect[][] = [];
-								for (let i = 0; i < numPages; i++) {
-									const tmpBoxesRedacted = boxesRedacted[i] ?? [];
-									const tmpBoxesMarkedForRedaction =
-										boxesMarkedForRedaction[i] ?? [];
-									redacted[i] = [
-										...tmpBoxesRedacted,
-										...tmpBoxesMarkedForRedaction,
-									];
+								const nextHistoryEntries = createRedactionHistoryEntries(
+									boxesMarkedForRedaction,
+								);
+								if (nextHistoryEntries.length === 0) {
+									return;
 								}
 
-								setBoxesRedacted(redacted);
+								setRedactionHistory((previousHistory) => [
+									...previousHistory,
+									...nextHistoryEntries,
+								]);
+								setRedoHistory([]);
+								setBoxesRedacted((previousBoxesRedacted) =>
+									Array.from({ length: numPages }, (_, pageIndex) => [
+										...(previousBoxesRedacted[pageIndex] ?? []).map(
+											cloneDOMRect,
+										),
+										...(boxesMarkedForRedaction[pageIndex] ?? []).map(
+											cloneDOMRect,
+										),
+									]),
+								);
 								setBoxesMarkedForRedaction([]);
 							}}
 							disabled={
 								!(textRedactorSelected || boxRedactorSelected) ||
-								boxesMarkedForRedaction.length === 0
+								!hasAnyBoxes(boxesMarkedForRedaction)
 							}
 						/>
 						<ToolbarItem.TextRedactor
@@ -682,9 +808,21 @@ function PdfRedactor(props: PdfRedactorProps) {
 							onClick={toggleBoxRedactor}
 							selected={boxRedactorSelected}
 						/>
+						<ToolbarItem.Undo
+							onClick={undo}
+							disabled={redactionHistory.length === 0}
+						/>
+						<ToolbarItem.Redo
+							onClick={redo}
+							disabled={redoHistory.length === 0}
+						/>
+						<ToolbarItem.Reset
+							onClick={onResetDialogOpen}
+							disabled={redactionHistory.length === 0}
+						/>
 						<ToolbarItem.Save
 							onClick={() => Save()}
-							disabled={boxesRedacted.length === 0}
+							disabled={!hasAnyBoxes(boxesRedacted)}
 						/>
 					</Toolbar>
 					<div
@@ -790,6 +928,25 @@ function PdfRedactor(props: PdfRedactorProps) {
 					</div>
 				</Document>
 			</ExportProvider>
+			<Dialog
+				open={resetDialogOpen}
+				onClose={onResetDialogClose}
+				transitionDuration={250}
+				fullWidth
+				maxWidth="sm"
+			>
+				<DialogContent>
+					<DialogContentText>
+						Vill du verkligen kassera alla ändringar?
+					</DialogContentText>
+				</DialogContent>
+				<DialogActions>
+					<Button onClick={resetRedactions} variant="contained" autoFocus>
+						Bekräfta
+					</Button>
+					<Button onClick={onResetDialogClose}>Avbryt</Button>
+				</DialogActions>
+			</Dialog>
 		</>
 	);
 }

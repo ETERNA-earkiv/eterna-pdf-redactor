@@ -7,7 +7,7 @@ type SaveProps = {
 
 function Save(props: SaveProps) {
 	return (
-		<button type="button" onClick={props.onClick} disabled={props.disabled}>
+		<button type="button" title="Spara" onClick={props.onClick} disabled={props.disabled}>
 			<FiSave />
 		</button>
 	);
