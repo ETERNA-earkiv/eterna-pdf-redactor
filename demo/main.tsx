@@ -2,6 +2,7 @@ import React from "react";
 import { createRoot, Root } from "react-dom/client";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { createState } from "state-pool";
+import type { SaveResult } from "../src/main";
 
 import "./index.css";
 import PDFRedactorApp from "../src/PDFRedactorApp";
@@ -34,12 +35,14 @@ class PDFRedactor {
 
 	setUrl = (url: string) => urlState.setValue(url);
 
-	save(_: Blob) {
+	save(_: Blob, _signal?: AbortSignal): Promise<SaveResult> | SaveResult {
 		console.log("save callback is not set");
 		return false;
 	}
 
-	setSaveCallback(callback: (pdfData: Blob) => boolean) {
+	setSaveCallback(
+		callback: (pdfData: Blob, signal: AbortSignal) => Promise<SaveResult> | SaveResult,
+	) {
 		this.save = callback;
 	}
 }

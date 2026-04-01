@@ -156,11 +156,10 @@ export const ExportProvider: React.FC<ExportProviderProps> = ({
 		}
 	};
 
-	const isSaveSuccessful = (result: unknown, wasAsync: boolean): boolean => {
-		// Backward compat: sync callbacks that return undefined/void are treated as success.
-		// Async (Promise-returning) callbacks must return an explicit success signal.
+	const isSaveSuccessful = (result: unknown): boolean => {
+		// void/undefined is treated as success — AbortSignal handles hung callbacks.
 		if (result === undefined || result === null) {
-			return !wasAsync;
+			return true;
 		}
 
 		if (typeof result === "boolean") {
@@ -197,18 +196,23 @@ export const ExportProvider: React.FC<ExportProviderProps> = ({
 			}
 
 			const pdfData = new Blob([await exportedPdfDocument.save()]);
-			const rawResult = window.PDFRedactor.save(pdfData);
-			const wasAsync = rawResult instanceof Promise;
-			const saveResult = await Promise.race([
-				Promise.resolve(rawResult),
-				new Promise<never>((_, reject) =>
-					setTimeout(
-						() => reject(new Error("save timeout")),
-						SAVE_TIMEOUT_MS,
-					),
-				),
-			]);
-			if (isSaveSuccessful(saveResult, wasAsync)) {
+			const saveAbortSignal = AbortSignal.timeout(SAVE_TIMEOUT_MS);
+			const rawResult = window.PDFRedactor.save(pdfData, saveAbortSignal);
+			const saveResult = await new Promise<unknown>((resolve, reject) => {
+				const onAbort = () => reject(saveAbortSignal.reason);
+				saveAbortSignal.addEventListener("abort", onAbort, { once: true });
+				Promise.resolve(rawResult).then(
+					(value) => {
+						saveAbortSignal.removeEventListener("abort", onAbort);
+						resolve(value);
+					},
+					(reason) => {
+						saveAbortSignal.removeEventListener("abort", onAbort);
+						reject(reason);
+					},
+				);
+			});
+			if (isSaveSuccessful(saveResult)) {
 				setExportDone(true);
 				return;
 			}
