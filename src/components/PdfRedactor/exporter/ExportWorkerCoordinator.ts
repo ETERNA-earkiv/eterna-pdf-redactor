@@ -14,7 +14,10 @@ export type ExportProgressEvent = CustomEvent<{
 }>;
 
 const currentDir = ".";
-const prefixedWorkerUrl = new URL(`${currentDir}${exportWorkerUrl}`, import.meta.url);
+const prefixedWorkerUrl =
+	import.meta.env.MODE === "development"
+		? new URL(exportWorkerUrl, location.origin)
+		: new URL(`${currentDir}${exportWorkerUrl}`, import.meta.url);
 
 export default class ExportWorkerCoordinator extends EventTarget {
 	private workers: Worker[] = [];
