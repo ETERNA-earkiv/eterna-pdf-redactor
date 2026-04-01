@@ -41,12 +41,14 @@ class PDFRedactor {
 
 	setUrl = (url: string) => urlState.setValue(url);
 
-	save(_: Blob): Promise<SaveResult> | SaveResult {
+	save(_: Blob, _signal?: AbortSignal): Promise<SaveResult> | SaveResult {
 		console.log("save callback is not set");
 		return false;
 	}
 
-	setSaveCallback(callback: (pdfData: Blob) => Promise<SaveResult> | SaveResult) {
+	setSaveCallback(
+		callback: (pdfData: Blob, signal: AbortSignal) => Promise<SaveResult> | SaveResult,
+	) {
 		this.save = callback;
 	}
 }
