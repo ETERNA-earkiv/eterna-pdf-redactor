@@ -74,8 +74,8 @@ type RedactionHistoryEntry = {
 type RedactionState = {
 	boxesMarkedForRedaction: DOMRect[][];
 	boxesRedacted: DOMRect[][];
-	redactionHistory: RedactionHistoryEntry[];
-	redoHistory: RedactionHistoryEntry[];
+	redactionHistory: RedactionHistoryEntry[][];
+	redoHistory: RedactionHistoryEntry[][];
 };
 
 const cloneDOMRect = (rect: DOMRect): DOMRect =>
@@ -316,19 +316,27 @@ function PdfRedactor(props: PdfRedactorProps) {
 
 	const undo = useCallback(() => {
 		setRedactionState((prev) => {
-			const lastEntry = prev.redactionHistory[prev.redactionHistory.length - 1];
-			if (lastEntry === undefined) {
+			const lastGroup = prev.redactionHistory[prev.redactionHistory.length - 1];
+			if (lastGroup === undefined) {
 				return prev;
 			}
 
 			const nextBoxesRedacted = prev.boxesRedacted.map((pageBoxes) => [
 				...pageBoxes,
 			]);
-			const pageBoxes = nextBoxesRedacted[lastEntry.pageIndex] ?? [];
-			if (pageBoxes.length > 0) {
-				pageBoxes.pop();
+
+			// Count how many boxes to remove per page (they were appended last)
+			const removeCountByPage = new Map<number, number>();
+			for (const entry of lastGroup) {
+				removeCountByPage.set(
+					entry.pageIndex,
+					(removeCountByPage.get(entry.pageIndex) ?? 0) + 1,
+				);
 			}
-			nextBoxesRedacted[lastEntry.pageIndex] = pageBoxes;
+			for (const [pageIndex, count] of removeCountByPage) {
+				const pageBoxes = nextBoxesRedacted[pageIndex] ?? [];
+				nextBoxesRedacted[pageIndex] = pageBoxes.slice(0, pageBoxes.length - count);
+			}
 
 			return {
 				boxesMarkedForRedaction: [],
@@ -339,7 +347,10 @@ function PdfRedactor(props: PdfRedactorProps) {
 				),
 				redoHistory: [
 					...prev.redoHistory,
-					{ pageIndex: lastEntry.pageIndex, box: cloneDOMRect(lastEntry.box) },
+					lastGroup.map((entry) => ({
+						pageIndex: entry.pageIndex,
+						box: cloneDOMRect(entry.box),
+					})),
 				],
 			};
 		});
@@ -347,24 +358,29 @@ function PdfRedactor(props: PdfRedactorProps) {
 
 	const redo = useCallback(() => {
 		setRedactionState((prev) => {
-			const lastEntry = prev.redoHistory[prev.redoHistory.length - 1];
-			if (lastEntry === undefined) {
+			const lastGroup = prev.redoHistory[prev.redoHistory.length - 1];
+			if (lastGroup === undefined) {
 				return prev;
 			}
 
 			const nextBoxesRedacted = prev.boxesRedacted.map((pageBoxes) => [
 				...pageBoxes,
 			]);
-			const pageBoxes = nextBoxesRedacted[lastEntry.pageIndex] ?? [];
-			pageBoxes.push(cloneDOMRect(lastEntry.box));
-			nextBoxesRedacted[lastEntry.pageIndex] = pageBoxes;
+			for (const entry of lastGroup) {
+				const pageBoxes = nextBoxesRedacted[entry.pageIndex] ?? [];
+				pageBoxes.push(cloneDOMRect(entry.box));
+				nextBoxesRedacted[entry.pageIndex] = pageBoxes;
+			}
 
 			return {
 				boxesMarkedForRedaction: prev.boxesMarkedForRedaction,
 				boxesRedacted: nextBoxesRedacted,
 				redactionHistory: [
 					...prev.redactionHistory,
-					{ pageIndex: lastEntry.pageIndex, box: cloneDOMRect(lastEntry.box) },
+					lastGroup.map((entry) => ({
+						pageIndex: entry.pageIndex,
+						box: cloneDOMRect(entry.box),
+					})),
 				],
 				redoHistory: prev.redoHistory.slice(0, prev.redoHistory.length - 1),
 			};
@@ -802,7 +818,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 										),
 										redactionHistory: [
 											...prev.redactionHistory,
-											...nextHistoryEntries,
+											nextHistoryEntries,
 										],
 										redoHistory: [],
 									};
