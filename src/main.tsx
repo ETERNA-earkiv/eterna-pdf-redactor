@@ -13,6 +13,14 @@ const lightTheme = createTheme({
 
 const urlState = createState("");
 
+export type SaveResult =
+	| boolean
+	| { ok: boolean }
+	| { success: boolean }
+	| { status: number }
+	| null
+	| undefined;
+
 class PDFRedactor {
 	private root: Root | undefined;
 
@@ -33,12 +41,12 @@ class PDFRedactor {
 
 	setUrl = (url: string) => urlState.setValue(url);
 
-	save(_: Blob): Promise<boolean> | boolean {
+	save(_: Blob): Promise<SaveResult> | SaveResult {
 		console.log("save callback is not set");
 		return false;
 	}
 
-	setSaveCallback(callback: (pdfData: Blob) => Promise<boolean> | boolean) {
+	setSaveCallback(callback: (pdfData: Blob) => Promise<SaveResult> | SaveResult) {
 		this.save = callback;
 	}
 }
