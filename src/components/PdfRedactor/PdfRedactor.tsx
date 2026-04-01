@@ -32,16 +32,18 @@ import {
 	ExportProvider,
 } from "./exporter/ExportContext";
 
+const pdfjsBase = import.meta.env.MODE === "development" ? location.origin + "/" : import.meta.url;
+
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 	/* @vite-ignore */ "pdfjs/pdf.worker.min.mjs",
-	import.meta.url,
+	pdfjsBase,
 ).href;
 
 const options = {
-	cMapUrl: new URL(/* @vite-ignore */ "pdfjs/cmaps/", import.meta.url).href,
+	cMapUrl: new URL(/* @vite-ignore */ "pdfjs/cmaps/", pdfjsBase).href,
 	standardFontDataUrl: new URL(
 		/* @vite-ignore */ "pdfjs/standard_fonts/",
-		import.meta.url,
+		pdfjsBase,
 	).href,
 };
 
