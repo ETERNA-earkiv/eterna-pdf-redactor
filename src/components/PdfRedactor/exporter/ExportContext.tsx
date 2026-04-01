@@ -155,6 +155,12 @@ export const ExportProvider: React.FC<ExportProviderProps> = ({
 	};
 
 	const isSaveSuccessful = (result: unknown): boolean => {
+		// Backward compat: callbacks that return undefined/void are treated as success.
+		// Before this PR the return value was ignored entirely.
+		if (result === undefined || result === null) {
+			return true;
+		}
+
 		if (typeof result === "boolean") {
 			return result;
 		}
