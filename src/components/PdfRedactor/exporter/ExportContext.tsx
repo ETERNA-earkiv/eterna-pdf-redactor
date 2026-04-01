@@ -27,6 +27,8 @@ import ExportWorkerCoordinator, {
 	type ExportProgressEvent,
 } from "./ExportWorkerCoordinator";
 
+const SAVE_TIMEOUT_MS = 30_000;
+
 export type ExportContextType = {
 	exportPdf: () => Promise<PDFDocument | undefined>;
 	confirmExport: () => void;
@@ -154,11 +156,11 @@ export const ExportProvider: React.FC<ExportProviderProps> = ({
 		}
 	};
 
-	const isSaveSuccessful = (result: unknown): boolean => {
-		// Backward compat: callbacks that return undefined/void are treated as success.
-		// Before this PR the return value was ignored entirely.
+	const isSaveSuccessful = (result: unknown, wasAsync: boolean): boolean => {
+		// Backward compat: sync callbacks that return undefined/void are treated as success.
+		// Async (Promise-returning) callbacks must return an explicit success signal.
 		if (result === undefined || result === null) {
-			return true;
+			return !wasAsync;
 		}
 
 		if (typeof result === "boolean") {
@@ -195,8 +197,18 @@ export const ExportProvider: React.FC<ExportProviderProps> = ({
 			}
 
 			const pdfData = new Blob([await exportedPdfDocument.save()]);
-			const saveResult = await Promise.resolve(window.PDFRedactor.save(pdfData));
-			if (isSaveSuccessful(saveResult)) {
+			const rawResult = window.PDFRedactor.save(pdfData);
+			const wasAsync = rawResult instanceof Promise;
+			const saveResult = await Promise.race([
+				Promise.resolve(rawResult),
+				new Promise<never>((_, reject) =>
+					setTimeout(
+						() => reject(new Error("save timeout")),
+						SAVE_TIMEOUT_MS,
+					),
+				),
+			]);
+			if (isSaveSuccessful(saveResult, wasAsync)) {
 				setExportDone(true);
 				return;
 			}
