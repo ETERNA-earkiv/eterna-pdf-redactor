@@ -17,7 +17,7 @@ async function pageToPng(
 
 	const context = canvas.getContext("2d");
 	if (context === null) {
-		console.log("Could not get canvas context.");
+		console.error(`[pageToPng] Could not get canvas context for page. Canvas size: ${canvas.width}x${canvas.height}`);
 		return;
 	}
 

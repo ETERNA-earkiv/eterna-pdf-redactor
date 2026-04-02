@@ -49,6 +49,7 @@ export default class ExportWorkerCoordinator extends EventTarget {
 			}
 		} else if (e.data.type === "errorPage") {
 			const { pageNumber, message } = e.data.params;
+			console.error(`[ExportWorker] Page ${pageNumber} failed:`, message);
 			const reject = this.pageNumberRejectMap.get(pageNumber);
 			if (reject !== undefined) {
 				reject(new Error(message));
@@ -257,8 +258,9 @@ export default class ExportWorkerCoordinator extends EventTarget {
 				exportedPage = await Promise.any(
 					exportPageProgressPromises.values(),
 				);
-			} catch {
+			} catch (err) {
 				// All remaining page promises rejected — export cannot continue
+				console.error("[ExportWorkerCoordinator] All page promises rejected:", err);
 				return undefined;
 			}
 
