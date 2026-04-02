@@ -27,6 +27,8 @@ import ExportWorkerCoordinator, {
 	type ExportProgressEvent,
 } from "./ExportWorkerCoordinator";
 
+const SAVE_TIMEOUT_MS = 30_000;
+
 export type ExportContextType = {
 	exportPdf: () => Promise<PDFDocument | undefined>;
 	confirmExport: () => void;
@@ -60,6 +62,7 @@ export const ExportProvider: React.FC<ExportProviderProps> = ({
 	const [workersReady, setWorkersReady] = useState<boolean>(false);
 	const [exportStarted, setExportStarted] = useState<boolean>(false);
 	const [exportDone, setExportDone] = useState<boolean>(false);
+	const [uploadFailed, setUploadFailed] = useState<boolean>(false);
 	const [exportTotalPages, setExportTotalPages] = useState<
 		number | undefined
 	>();
@@ -103,9 +106,6 @@ export const ExportProvider: React.FC<ExportProviderProps> = ({
 	useEffect(() => {
 		const progressListener = (e: ExportProgressEvent) => {
 			setExportedPages(e.detail.numberOfPagesExported);
-			if (e.detail.numberOfPagesExported === e.detail.totalNumberOfPages) {
-				setExportDone(true);
-			}
 
 			if (onProgress !== undefined) {
 				onProgress(e);
@@ -145,26 +145,82 @@ export const ExportProvider: React.FC<ExportProviderProps> = ({
 	const handleClickOpen = () => {
 		setExportStarted(false);
 		setExportDone(false);
+		setUploadFailed(false);
 		setExportedPages(undefined);
 		setOpen(true);
 	};
 
 	const onClose = () => {
-		if (!exportStarted || exportDone) {
+		if (!exportStarted || exportDone || uploadFailed) {
 			setOpen(false);
 		}
 	};
 
-	const startExport = () => {
+	const isSaveSuccessful = (result: unknown): boolean => {
+		// void/undefined is treated as success — AbortSignal handles hung callbacks.
+		if (result === undefined || result === null) {
+			return true;
+		}
+
+		if (typeof result === "boolean") {
+			return result;
+		}
+
+		// Accept common HTTP-like responses for host integrations that return fetch/axios data.
+		if (result !== null && typeof result === "object") {
+			if ("ok" in result && typeof result.ok === "boolean") {
+				return result.ok;
+			}
+			if ("success" in result && typeof result.success === "boolean") {
+				return result.success;
+			}
+			if ("status" in result && typeof result.status === "number") {
+				return result.status >= 200 && result.status < 300;
+			}
+		}
+
+		return false;
+	};
+
+	const startExport = async () => {
 		setExportedPages(0);
 		setExportStarted(true);
 		setExportDone(false);
-		exportPdf().then(async (pdfDocument) => {
-			if (pdfDocument !== undefined) {
-				const pdfData = new Blob([await pdfDocument.save()]);
-				window.PDFRedactor.save(pdfData);
+		setUploadFailed(false);
+
+		try {
+			const exportedPdfDocument = await exportPdf();
+			if (exportedPdfDocument === undefined) {
+				setUploadFailed(true);
+				return;
 			}
-		});
+
+			const pdfData = new Blob([await exportedPdfDocument.save()]);
+			const saveAbortSignal = AbortSignal.timeout(SAVE_TIMEOUT_MS);
+			const rawResult = window.PDFRedactor.save(pdfData, saveAbortSignal);
+			const saveResult = await new Promise<unknown>((resolve, reject) => {
+				const onAbort = () => reject(saveAbortSignal.reason);
+				saveAbortSignal.addEventListener("abort", onAbort, { once: true });
+				Promise.resolve(rawResult).then(
+					(value) => {
+						saveAbortSignal.removeEventListener("abort", onAbort);
+						resolve(value);
+					},
+					(reason) => {
+						saveAbortSignal.removeEventListener("abort", onAbort);
+						reject(reason);
+					},
+				);
+			});
+			if (isSaveSuccessful(saveResult)) {
+				setExportDone(true);
+				return;
+			}
+		} catch {
+			// Any error in export or upload should be surfaced as a failed export.
+		}
+
+		setUploadFailed(true);
 	};
 
 	const value = { exportPdf, confirmExport };
@@ -217,16 +273,20 @@ export const ExportProvider: React.FC<ExportProviderProps> = ({
 				<Collapse in={exportStarted} unmountOnExit>
 					<DialogTitle>Sparar PDF</DialogTitle>
 					<DialogContent>
-						{!exportDone ? (
+						{!exportDone && !uploadFailed ? (
 							<>
 								<DialogContentText>{`Sparar sida ${exportedPages} av ${exportTotalPages}`}</DialogContentText>
 							</>
-						) : (
+						) : exportDone && !uploadFailed ? (
 							<DialogContentText>Export klar!</DialogContentText>
+						) : (
+							<DialogContentText sx={{ color: "error.main" }}>
+								Export misslyckades. Försök igen.
+							</DialogContentText>
 						)}
 						<CustomLinearProgress
 							variant="determinate"
-							sx={{ visibility: exportDone ? "hidden" : undefined }}
+							sx={{ visibility: exportDone || uploadFailed ? "hidden" : undefined }}
 							value={Math.round(
 								((exportedPages ?? 0) / (exportTotalPages ?? 0)) * 100,
 							)}
@@ -236,8 +296,9 @@ export const ExportProvider: React.FC<ExportProviderProps> = ({
 						<Button
 							onClick={onClose}
 							variant="contained"
-							sx={{ visibility: !exportDone ? "hidden" : undefined }}
-							disabled={!exportDone}
+							color={uploadFailed ? "error" : "primary"}
+							sx={{ visibility: !exportDone && !uploadFailed ? "hidden" : undefined }}
+							disabled={!exportDone && !uploadFailed}
 						>
 							Stäng
 						</Button>

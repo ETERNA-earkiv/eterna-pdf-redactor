@@ -7,6 +7,11 @@ import {
 	useState,
 } from "react";
 
+import Button from "@mui/material/Button";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogContentText from "@mui/material/DialogContentText";
 import { Document, Page, Thumbnail, pdfjs } from "react-pdf";
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 import clsx from "clsx";
@@ -60,6 +65,44 @@ interface PageProxyWithWidthHeight extends PDFPageProxy {
 	originalWidth: number;
 	originalHeight: number;
 }
+
+type RedactionHistoryEntry = {
+	pageIndex: number;
+	box: DOMRect;
+};
+
+type RedactionState = {
+	boxesMarkedForRedaction: DOMRect[][];
+	boxesRedacted: DOMRect[][];
+	redactionHistory: RedactionHistoryEntry[][];
+	redoHistory: RedactionHistoryEntry[][];
+};
+
+const cloneDOMRect = (rect: DOMRect): DOMRect =>
+	DOMRect.fromRect({
+		x: rect.x,
+		y: rect.y,
+		width: rect.width,
+		height: rect.height,
+	});
+
+const hasAnyBoxes = (boxes: DOMRect[][]): boolean =>
+	boxes.some((pageBoxes) => pageBoxes.length > 0);
+
+const createRedactionHistoryEntries = (
+	boxesMarkedForRedaction: DOMRect[][],
+): RedactionHistoryEntry[] => {
+	const entries: RedactionHistoryEntry[] = [];
+
+	for (let pageIndex = 0; pageIndex < boxesMarkedForRedaction.length; pageIndex++) {
+		const pageBoxes = boxesMarkedForRedaction[pageIndex] ?? [];
+		for (let i = 0; i < pageBoxes.length; i++) {
+			entries.push({ pageIndex, box: cloneDOMRect(pageBoxes[i]) });
+		}
+	}
+
+	return entries;
+};
 
 function PdfRedactor(props: PdfRedactorProps) {
 	const [documentProxy, setDocumentProxy] = useState<PDFDocumentProxy>();
@@ -261,10 +304,107 @@ function PdfRedactor(props: PdfRedactorProps) {
 		}
 	};
 
-	const [boxesMarkedForRedaction, setBoxesMarkedForRedaction] = useState<
-		DOMRect[][]
-	>([]);
-	const [boxesRedacted, setBoxesRedacted] = useState<DOMRect[][]>([]);
+	const [redactionState, setRedactionState] = useState<RedactionState>({
+		boxesMarkedForRedaction: [],
+		boxesRedacted: [],
+		redactionHistory: [],
+		redoHistory: [],
+	});
+	const { boxesMarkedForRedaction, boxesRedacted, redactionHistory, redoHistory } =
+		redactionState;
+	const [resetDialogOpen, setResetDialogOpen] = useState<boolean>(false);
+
+	const undo = useCallback(() => {
+		setRedactionState((prev) => {
+			const lastGroup = prev.redactionHistory[prev.redactionHistory.length - 1];
+			if (lastGroup === undefined) {
+				return prev;
+			}
+
+			const nextBoxesRedacted = prev.boxesRedacted.map((pageBoxes) => [
+				...pageBoxes,
+			]);
+
+			// Count how many boxes to remove per page (they were appended last)
+			const removeCountByPage = new Map<number, number>();
+			for (const entry of lastGroup) {
+				removeCountByPage.set(
+					entry.pageIndex,
+					(removeCountByPage.get(entry.pageIndex) ?? 0) + 1,
+				);
+			}
+			for (const [pageIndex, count] of removeCountByPage) {
+				const pageBoxes = nextBoxesRedacted[pageIndex] ?? [];
+				nextBoxesRedacted[pageIndex] = pageBoxes.slice(0, pageBoxes.length - count);
+			}
+
+			return {
+				boxesMarkedForRedaction: [],
+				boxesRedacted: nextBoxesRedacted,
+				redactionHistory: prev.redactionHistory.slice(
+					0,
+					prev.redactionHistory.length - 1,
+				),
+				redoHistory: [
+					...prev.redoHistory,
+					lastGroup.map((entry) => ({
+						pageIndex: entry.pageIndex,
+						box: cloneDOMRect(entry.box),
+					})),
+				],
+			};
+		});
+	}, []);
+
+	const redo = useCallback(() => {
+		setRedactionState((prev) => {
+			const lastGroup = prev.redoHistory[prev.redoHistory.length - 1];
+			if (lastGroup === undefined) {
+				return prev;
+			}
+
+			const nextBoxesRedacted = prev.boxesRedacted.map((pageBoxes) => [
+				...pageBoxes,
+			]);
+			for (const entry of lastGroup) {
+				const pageBoxes = nextBoxesRedacted[entry.pageIndex] ?? [];
+				pageBoxes.push(cloneDOMRect(entry.box));
+				nextBoxesRedacted[entry.pageIndex] = pageBoxes;
+			}
+
+			return {
+				boxesMarkedForRedaction: prev.boxesMarkedForRedaction,
+				boxesRedacted: nextBoxesRedacted,
+				redactionHistory: [
+					...prev.redactionHistory,
+					lastGroup.map((entry) => ({
+						pageIndex: entry.pageIndex,
+						box: cloneDOMRect(entry.box),
+					})),
+				],
+				redoHistory: prev.redoHistory.slice(0, prev.redoHistory.length - 1),
+			};
+		});
+	}, []);
+
+	const onResetDialogOpen = useCallback(() => {
+		setResetDialogOpen(true);
+	}, []);
+
+	const onResetDialogClose = useCallback(() => {
+		setResetDialogOpen(false);
+	}, []);
+
+	const resetRedactions = useCallback(() => {
+		setRedactionState({
+			boxesMarkedForRedaction: [],
+			boxesRedacted: [],
+			redactionHistory: [],
+			redoHistory: [],
+		});
+		setResetDialogOpen(false);
+	}, []);
+
 
 	const redactedRangesHandler = useCallback(
 		(ranges: Range[]) => {
@@ -353,7 +493,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 					});
 			});
 
-			setBoxesMarkedForRedaction(rects);
+			setRedactionState((prev) => ({ ...prev, boxesMarkedForRedaction: rects }));
 		},
 		[numPages, pageElementRefs],
 	);
@@ -362,7 +502,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 		() => () => {
 			const selection = document.getSelection();
 			if (selection === null || selection.type !== "Range") {
-				setBoxesMarkedForRedaction([]);
+				setRedactionState((prev) => ({ ...prev, boxesMarkedForRedaction: [] }));
 				return;
 			}
 
@@ -385,7 +525,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 
 	const toggleTextRedactor = () => {
 		setBoxRedactorSelected(false);
-		setBoxesMarkedForRedaction([]);
+		setRedactionState((prev) => ({ ...prev, boxesMarkedForRedaction: [] }));
 		window.getSelection()?.removeAllRanges();
 		if (!textRedactorSelected) {
 			setTextRedactorSelected(true);
@@ -495,7 +635,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 
 			const boxes: DOMRect[][] = Array.from({ length: numPages }, () => []);
 			boxes[coords.pageNumber - 1].push(redactionBox);
-			setBoxesMarkedForRedaction(boxes);
+			setRedactionState((prev) => ({ ...prev, boxesMarkedForRedaction: boxes }));
 
 			drawRedactBoxFrom.current = undefined;
 			drawRedactBoxTo.current = undefined;
@@ -565,7 +705,7 @@ function PdfRedactor(props: PdfRedactorProps) {
 
 	const toggleBoxRedactor = () => {
 		setTextRedactorSelected(false);
-		setBoxesMarkedForRedaction([]);
+		setRedactionState((prev) => ({ ...prev, boxesMarkedForRedaction: [] }));
 		window.getSelection()?.removeAllRanges();
 		if (!boxRedactorSelected) {
 			setBoxRedactorSelected(true);
@@ -657,23 +797,36 @@ function PdfRedactor(props: PdfRedactorProps) {
 						<ToolbarItem.Spacer />
 						<ToolbarItem.ApplyRedactions
 							onClick={() => {
-								const redacted: DOMRect[][] = [];
-								for (let i = 0; i < numPages; i++) {
-									const tmpBoxesRedacted = boxesRedacted[i] ?? [];
-									const tmpBoxesMarkedForRedaction =
-										boxesMarkedForRedaction[i] ?? [];
-									redacted[i] = [
-										...tmpBoxesRedacted,
-										...tmpBoxesMarkedForRedaction,
-									];
-								}
+								setRedactionState((prev) => {
+									const nextHistoryEntries = createRedactionHistoryEntries(
+										prev.boxesMarkedForRedaction,
+									);
+									if (nextHistoryEntries.length === 0) {
+										return prev;
+									}
 
-								setBoxesRedacted(redacted);
-								setBoxesMarkedForRedaction([]);
+									return {
+										boxesMarkedForRedaction: [],
+										boxesRedacted: Array.from(
+											{ length: numPages },
+											(_, pageIndex) => [
+												...(prev.boxesRedacted[pageIndex] ?? []).map(cloneDOMRect),
+												...(prev.boxesMarkedForRedaction[pageIndex] ?? []).map(
+													cloneDOMRect,
+												),
+											],
+										),
+										redactionHistory: [
+											...prev.redactionHistory,
+											nextHistoryEntries,
+										],
+										redoHistory: [],
+									};
+								});
 							}}
 							disabled={
 								!(textRedactorSelected || boxRedactorSelected) ||
-								boxesMarkedForRedaction.length === 0
+								!hasAnyBoxes(boxesMarkedForRedaction)
 							}
 						/>
 						<ToolbarItem.TextRedactor
@@ -684,9 +837,21 @@ function PdfRedactor(props: PdfRedactorProps) {
 							onClick={toggleBoxRedactor}
 							selected={boxRedactorSelected}
 						/>
+						<ToolbarItem.Undo
+							onClick={undo}
+							disabled={redactionHistory.length === 0}
+						/>
+						<ToolbarItem.Redo
+							onClick={redo}
+							disabled={redoHistory.length === 0}
+						/>
+						<ToolbarItem.Reset
+							onClick={onResetDialogOpen}
+							disabled={redactionHistory.length === 0}
+						/>
 						<ToolbarItem.Save
 							onClick={() => Save()}
-							disabled={boxesRedacted.length === 0}
+							disabled={!hasAnyBoxes(boxesRedacted)}
 						/>
 					</Toolbar>
 					<div
@@ -792,6 +957,25 @@ function PdfRedactor(props: PdfRedactorProps) {
 					</div>
 				</Document>
 			</ExportProvider>
+			<Dialog
+				open={resetDialogOpen}
+				onClose={onResetDialogClose}
+				transitionDuration={250}
+				fullWidth
+				maxWidth="sm"
+			>
+				<DialogContent>
+					<DialogContentText>
+						Vill du verkligen kassera alla ändringar?
+					</DialogContentText>
+				</DialogContent>
+				<DialogActions>
+					<Button onClick={resetRedactions} variant="contained" autoFocus>
+						Bekräfta
+					</Button>
+					<Button onClick={onResetDialogClose}>Avbryt</Button>
+				</DialogActions>
+			</Dialog>
 		</>
 	);
 }
