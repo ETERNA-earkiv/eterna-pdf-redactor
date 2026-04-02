@@ -9,4 +9,12 @@ type ExportPageResponse = {
 	params: ExportedXObjects;
 };
 
-export type ExportWorkerResponse = SetBufferResponse | ExportPageResponse;
+type ErrorPageResponse = {
+	type: "errorPage";
+	params: { pageNumber: number; message: string };
+};
+
+export type ExportWorkerResponse =
+	| SetBufferResponse
+	| ExportPageResponse
+	| ErrorPageResponse;

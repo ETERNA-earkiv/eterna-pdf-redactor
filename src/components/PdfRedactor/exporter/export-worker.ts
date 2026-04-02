@@ -89,26 +89,42 @@ self.onmessage = async (e: MessageEvent<ExportWorkerMessage>) => {
 
 		self.postMessage(<ExportWorkerResponse>{ type: "loadDocument" });
 	} else if (e.data.type === "exportPage") {
-		if (!pdfDocument) {
-			return; // todo handle error
-		}
-
 		const { pageNumber, boxes, scale } = e.data.params;
 
-		const exportedXObjects = await exportPageFromWorker(
-			pdfDocument,
-			pageNumber,
-			boxes,
-			scale,
-		);
-
-		if (!exportedXObjects) {
-			return; // todo handle error
+		if (!pdfDocument) {
+			self.postMessage(<ExportWorkerResponse>{
+				type: "errorPage",
+				params: { pageNumber, message: "Document not loaded" },
+			});
+			return;
 		}
 
-		self.postMessage(<ExportWorkerResponse>{
-			type: "exportPage",
-			params: exportedXObjects,
-		});
+		try {
+			const exportedXObjects = await exportPageFromWorker(
+				pdfDocument,
+				pageNumber,
+				boxes,
+				scale,
+			);
+
+			if (!exportedXObjects) {
+				self.postMessage(<ExportWorkerResponse>{
+					type: "errorPage",
+					params: { pageNumber, message: `Failed to render page ${pageNumber}` },
+				});
+				return;
+			}
+
+			self.postMessage(<ExportWorkerResponse>{
+				type: "exportPage",
+				params: exportedXObjects,
+			});
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			self.postMessage(<ExportWorkerResponse>{
+				type: "errorPage",
+				params: { pageNumber, message },
+			});
+		}
 	}
 };

@@ -47,6 +47,12 @@ export default class ExportWorkerCoordinator extends EventTarget {
 			if (resolve !== undefined) {
 				resolve(e.data.params);
 			}
+		} else if (e.data.type === "errorPage") {
+			const { pageNumber, message } = e.data.params;
+			const reject = this.pageNumberRejectMap.get(pageNumber);
+			if (reject !== undefined) {
+				reject(new Error(message));
+			}
 		}
 	};
 
@@ -246,12 +252,18 @@ export default class ExportWorkerCoordinator extends EventTarget {
 		);
 
 		for (let i = 0; i < documentProxy.numPages; i++) {
-			const exportedPage = await Promise.any(
-				exportPageProgressPromises.values(),
-			);
+			let exportedPage;
+			try {
+				exportedPage = await Promise.any(
+					exportPageProgressPromises.values(),
+				);
+			} catch {
+				// All remaining page promises rejected — export cannot continue
+				return undefined;
+			}
 
 			if (exportedPage === undefined) {
-				return;
+				return undefined;
 			}
 
 			const e = new CustomEvent("progress", <ExportProgressEvent>{
