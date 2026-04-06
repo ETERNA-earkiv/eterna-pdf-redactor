@@ -40,7 +40,9 @@ function appendExportedPage(exportedXObjects: ExportedXObjects, pdfDocument: PDF
         embedder as unknown as PngEmbedder,
     );
 
-    pdfPage
+    // preserve original size/orientation
+    pdfPage.setWidth(exportedXObjects.width);
+    pdfPage.setHeight(exportedXObjects.height);
 
     pdfPage.drawImage(image, {
         x: 0,

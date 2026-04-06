@@ -3,13 +3,6 @@ import type { PDFPageProxy } from "pdfjs-dist";
 import { pageToPng } from "./pageToPng";
 import type { ExportedPage } from "./types/ExportedPage";
 
-interface PageProxyWithWidthHeight extends PDFPageProxy {
-    width: number;
-    height: number;
-    originalWidth: number;
-    originalHeight: number;
-}
-
 async function exportPage(
     pdfDocument: PDFDocument,
     page: PDFPageProxy,
@@ -27,10 +20,11 @@ async function exportPage(
     const embedder = await PngEmbedder.for(imageBytes);
     const pdfImage = PDFImage.of(imageRef, pdfDocument, embedder);
 
-    const width = (page as PageProxyWithWidthHeight).originalWidth;
-    const height = (page as PageProxyWithWidthHeight).originalHeight;
+const pageViewport = page.getViewport({ scale: 1 });
+	const width = pageViewport.width;
+	const height = pageViewport.height;
 
-    const newPage = PDFPage.create(pdfDocument)
+	const newPage = PDFPage.create(pdfDocument);
     newPage.setWidth(width);
     newPage.setHeight(height);
 
