@@ -218,7 +218,8 @@ export const ExportProvider: React.FC<ExportProviderProps> = ({
 				setExportDone(true);
 				return;
 			}
-		} catch (_err) {
+		} catch (err) {
+			console.error("[ExportContext] Export failed:", err);
 		}
 
 		setUploadFailed(true);
