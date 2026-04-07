@@ -90,10 +90,9 @@ export const ExportProvider: React.FC<ExportProviderProps> = ({
 		};
 
 		loadDocument().then(() => {
-			console.log("[ExportContext] All workers ready, numberOfWorkers=", exportWorkerCoordinator.numberOfWorkers);
 			setWorkersReady(true);
 		}).catch((err) => {
-			console.error("[ExportContext] loadDocument failed:", err);
+			console.error("[ExportContext] loadDocument failed, workers not ready:", err);
 		});
 	}, [exportWorkerCoordinator, pdfDocument]);
 
@@ -192,16 +191,13 @@ export const ExportProvider: React.FC<ExportProviderProps> = ({
 		setUploadFailed(false);
 
 		try {
-			console.log("[ExportContext] startExport: workersReady=", workersReady, "pdfDocument=", pdfDocument !== undefined, "workers=", exportWorkerCoordinator.numberOfWorkers);
 			const exportedPdfDocument = await exportPdf();
-			console.log("[ExportContext] exportPdf result:", exportedPdfDocument !== undefined ? "PDFDocument" : "undefined");
 			if (exportedPdfDocument === undefined) {
 				setUploadFailed(true);
 				return;
 			}
 
 			const pdfData = new Blob([await exportedPdfDocument.save()]);
-			console.log("[ExportContext] PDF saved, blob size:", pdfData.size);
 			const saveAbortSignal = AbortSignal.timeout(SAVE_TIMEOUT_MS);
 			const rawResult = window.PDFRedactor.save(pdfData, saveAbortSignal);
 			const saveResult = await new Promise<unknown>((resolve, reject) => {
@@ -218,13 +214,12 @@ export const ExportProvider: React.FC<ExportProviderProps> = ({
 					},
 				);
 			});
-			console.log("[ExportContext] saveResult:", saveResult, "isSaveSuccessful:", isSaveSuccessful(saveResult));
 			if (isSaveSuccessful(saveResult)) {
 				setExportDone(true);
 				return;
 			}
 		} catch (err) {
-			console.error("[ExportContext] Export failed with error:", err);
+			console.error("[ExportContext] Export failed:", err);
 		}
 
 		setUploadFailed(true);

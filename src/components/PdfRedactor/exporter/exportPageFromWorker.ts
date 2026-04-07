@@ -61,10 +61,11 @@ async function exportPageFromWorker(
 		xObjectDictRGB,
 	);
 
+	const pageViewport = page.getViewport({ scale: 1 });
 	return <ExportedXObjects>{
 		pageNumber,
-		width: page._pageInfo.view[2],
-		height: page._pageInfo.view[3],
+		width: pageViewport.width,
+		height: pageViewport.height,
 		xObjectAlphaChannel: {
 			data: xObjectAlphaChannel?.asUint8Array(),
 			dict: xObjectDictAlphaChannel,
