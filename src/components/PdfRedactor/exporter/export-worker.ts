@@ -78,6 +78,48 @@ const options = {
 	},
 };
 
+// Serialize page exports to prevent concurrent OffscreenCanvas creation,
+// which can exhaust GPU resources and cause getContext("2d") to return null.
+let exportQueue: Promise<void> = Promise.resolve();
+
+async function processExportPage(pageNumber: number, boxes: DOMRect[] | undefined, scale: number) {
+	if (!pdfDocument) {
+		self.postMessage(<ExportWorkerResponse>{
+			type: "errorPage",
+			params: { pageNumber, message: "Document not loaded" },
+		});
+		return;
+	}
+
+	try {
+		const exportedXObjects = await exportPageFromWorker(
+			pdfDocument,
+			pageNumber,
+			boxes,
+			scale,
+		);
+
+		if (!exportedXObjects) {
+			self.postMessage(<ExportWorkerResponse>{
+				type: "errorPage",
+				params: { pageNumber, message: `Failed to render page ${pageNumber}` },
+			});
+			return;
+		}
+
+		self.postMessage(<ExportWorkerResponse>{
+			type: "exportPage",
+			params: exportedXObjects,
+		});
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		self.postMessage(<ExportWorkerResponse>{
+			type: "errorPage",
+			params: { pageNumber, message },
+		});
+	}
+}
+
 self.onmessage = async (e: MessageEvent<ExportWorkerMessage>) => {
 	if (e.data.type === "loadDocument") {
 		pdfBuffer = e.data.params.buffer;
@@ -90,41 +132,8 @@ self.onmessage = async (e: MessageEvent<ExportWorkerMessage>) => {
 		self.postMessage(<ExportWorkerResponse>{ type: "loadDocument" });
 	} else if (e.data.type === "exportPage") {
 		const { pageNumber, boxes, scale } = e.data.params;
-
-		if (!pdfDocument) {
-			self.postMessage(<ExportWorkerResponse>{
-				type: "errorPage",
-				params: { pageNumber, message: "Document not loaded" },
-			});
-			return;
-		}
-
-		try {
-			const exportedXObjects = await exportPageFromWorker(
-				pdfDocument,
-				pageNumber,
-				boxes,
-				scale,
-			);
-
-			if (!exportedXObjects) {
-				self.postMessage(<ExportWorkerResponse>{
-					type: "errorPage",
-					params: { pageNumber, message: `Failed to render page ${pageNumber}` },
-				});
-				return;
-			}
-
-			self.postMessage(<ExportWorkerResponse>{
-				type: "exportPage",
-				params: exportedXObjects,
-			});
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			self.postMessage(<ExportWorkerResponse>{
-				type: "errorPage",
-				params: { pageNumber, message },
-			});
-		}
+		exportQueue = exportQueue.then(() =>
+			processExportPage(pageNumber, boxes, scale),
+		);
 	}
 };

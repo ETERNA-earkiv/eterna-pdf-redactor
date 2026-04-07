@@ -91,6 +91,8 @@ export const ExportProvider: React.FC<ExportProviderProps> = ({
 
 		loadDocument().then(() => {
 			setWorkersReady(true);
+		}).catch((err) => {
+			console.error("[ExportContext] loadDocument failed, workers not ready:", err);
 		});
 	}, [exportWorkerCoordinator, pdfDocument]);
 
@@ -216,8 +218,8 @@ export const ExportProvider: React.FC<ExportProviderProps> = ({
 				setExportDone(true);
 				return;
 			}
-		} catch {
-			// Any error in export or upload should be surfaced as a failed export.
+		} catch (err) {
+			console.error("[ExportContext] Export failed:", err);
 		}
 
 		setUploadFailed(true);
