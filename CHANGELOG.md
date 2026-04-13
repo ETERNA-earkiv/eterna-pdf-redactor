@@ -8,18 +8,28 @@ All notable changes to **eterna-pdf-redactor** are documented here.
 
 
 
-## [1.0.2] – 2026-04-07
+## [1.0.3] – 2026-04-13
 
 ### Fixed
 - **Landscape PDF masking** – redaction boxes that were being applied with incorrect orientation on landscape-format pages are now rendered correctly; the fix also prevents data loss when exporting those pages.
+- **Error logging** – export and document-load errors are now consistently logged in the `ExportContext` catch blocks.
+
+### Added
+- **CI workflow** – automated lint and build checks run on pull requests targeting `dev` or `main`, and on direct pushes to `dev`.
+
+### Internal
+- Removed debug console statements added during export diagnostics investigation.
+
+---
+
+## [1.0.2] – 2026-04-02
+
+### Fixed
 - **Concurrent OffscreenCanvas exhaustion** – page exports inside each worker are now serialized to avoid running out of `OffscreenCanvas` instances when exporting multi-page documents in parallel.
 - **Silent export hangs** – page-level export errors are now propagated and reported instead of causing the save to hang indefinitely.
-- **Error logging** – export and document-load errors are now consistently logged in the `ExportContext` catch blocks.
 - **Atomic undo/redo** – redaction state (boxes, history, redo stack) is merged into a single state object so undo/redo transitions are always consistent.
 - **pdfjs / worker asset URLs** – asset URLs for the pdf.js worker, CMaps, and standard fonts are resolved correctly in both demo (development) mode and production WebJar mode.
 - **Save callback backward compatibility** – returning `undefined` or `void` from the save callback is treated as success, matching the pre-async behaviour.
-
----
 
 ### Added
 - **Undo** toolbar button – steps back through redaction actions one group at a time; state is managed atomically to prevent partial/inconsistent views.
@@ -51,6 +61,7 @@ All notable changes to **eterna-pdf-redactor** are documented here.
 ---
 
 [Unreleased]: https://github.com/ETERNA-earkiv/eterna-pdf-redactor/compare/HEAD...HEAD
+[1.0.3]: https://github.com/ETERNA-earkiv/eterna-pdf-redactor/releases/tag/1.0.3
 [1.0.2]: https://github.com/ETERNA-earkiv/eterna-pdf-redactor/releases/tag/1.0.2
 [1.0.1]: https://github.com/ETERNA-earkiv/eterna-pdf-redactor/releases/tag/1.0.1
 [1.0.0]: https://github.com/ETERNA-earkiv/eterna-pdf-redactor/releases/tag/1.0.0
