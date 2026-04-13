@@ -1,6 +1,8 @@
+>Läs på [Svenska](README_sv_SE.md)
+
 # eterna-pdf-redactor
 
-A browser-based PDF redaction component built for the [ETERNA](https://github.com/ETERNA-earkiv) electronic archives system. It renders PDF documents in the browser and allows users to mark, apply, and export redacted content using text selection or bounding-box drawing tools.
+A browser-based PDF redaction component built for [ETERNA](https://github.com/ETERNA-earkiv). It renders PDF documents in the browser and allows users to mark, apply, and export redacted content using text selection or bounding-box drawing tools.
 
 ---
 
@@ -165,4 +167,4 @@ demo/                               # Demo assets (only loaded in development mo
 
 ## License
 
-This project is part of the [ETERNA](https://github.com/ETERNA-earkiv) open electronic archives platform.
+This project is part of [ETERNA](https://github.com/ETERNA-earkiv).
