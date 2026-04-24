@@ -51,6 +51,14 @@ class PDFRedactor {
 	) {
 		this.save = callback;
 	}
+
+	preSave(): Promise<void> {
+		return Promise.resolve();
+	}
+
+	setPreSaveCallback(callback: () => Promise<void>) {
+		this.preSave = callback;
+	}
 }
 
 declare global {

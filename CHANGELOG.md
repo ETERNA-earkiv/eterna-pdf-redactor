@@ -6,7 +6,12 @@ All notable changes to **eterna-pdf-redactor** are documented here.
 
 ## [Unreleased]
 
+## [1.1.0] – 2026-04-24
 
+### Added
+- **`setPreSaveCallback`** – nytt API-metod på `window.PDFRedactor` som låter konsumenten registrera en async callback som körs innan spardialogrutan öppnas. Om callbacken rejectar avbryts hela exportflödet utan att spardialogrutan visas.
+
+---
 
 ## [1.0.3] – 2026-04-13
 
