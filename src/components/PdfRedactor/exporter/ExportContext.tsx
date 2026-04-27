@@ -11,6 +11,7 @@ import {
 import { styled } from "@mui/material/styles";
 import Button from "@mui/material/Button";
 import Collapse from "@mui/material/Collapse";
+import TextField from "@mui/material/TextField";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
@@ -67,6 +68,18 @@ export const ExportProvider: React.FC<ExportProviderProps> = ({
 		number | undefined
 	>();
 	const [exportedPages, setExportedPages] = useState<number | undefined>();
+	const [suffixInput, setSuffixInput] = useState<string>("");
+	const [suffixError, setSuffixError] = useState<string>("");
+	const [suffixConflict, setSuffixConflict] = useState<boolean>(false);
+
+	const SUFFIX_PATTERN = /^[a-zA-Z0-9\-_åäöÅÄÖ]*$/;
+
+	const validateSuffix = (value: string): string => {
+		if (value.length > 0 && !SUFFIX_PATTERN.test(value)) {
+			return "Ogiltiga tecken — använd bokstäver, siffror, - eller _";
+		}
+		return "";
+	};
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
 	const exportWorkerCoordinator = useMemo(() => {
@@ -149,6 +162,9 @@ export const ExportProvider: React.FC<ExportProviderProps> = ({
 		setExportDone(false);
 		setUploadFailed(false);
 		setExportedPages(undefined);
+		setSuffixInput("");
+		setSuffixError("");
+		setSuffixConflict(false);
 		setOpen(true);
 	};
 
@@ -185,10 +201,17 @@ export const ExportProvider: React.FC<ExportProviderProps> = ({
 	};
 
 	const startExport = async () => {
+		const validationError = validateSuffix(suffixInput);
+		if (validationError) {
+			setSuffixError(validationError);
+			return;
+		}
+
 		setExportedPages(0);
 		setExportStarted(true);
 		setExportDone(false);
 		setUploadFailed(false);
+		setSuffixConflict(false);
 
 		try {
 			const exportedPdfDocument = await exportPdf();
@@ -199,7 +222,7 @@ export const ExportProvider: React.FC<ExportProviderProps> = ({
 
 			const pdfData = new Blob([await exportedPdfDocument.save()]);
 			const saveAbortSignal = AbortSignal.timeout(SAVE_TIMEOUT_MS);
-			const rawResult = window.PDFRedactor.save(pdfData, saveAbortSignal);
+			const rawResult = window.PDFRedactor.save(pdfData, saveAbortSignal, suffixInput);
 			const saveResult = await new Promise<unknown>((resolve, reject) => {
 				const onAbort = () => reject(saveAbortSignal.reason);
 				saveAbortSignal.addEventListener("abort", onAbort, { once: true });
@@ -214,12 +237,27 @@ export const ExportProvider: React.FC<ExportProviderProps> = ({
 					},
 				);
 			});
+
+			// Hantera 409 Conflict — visa feltext i dialogen istället för generiskt fel
+			if (
+				saveResult !== null &&
+				typeof saveResult === "object" &&
+				"status" in saveResult &&
+				typeof (saveResult as { status: unknown }).status === "number" &&
+				(saveResult as { status: number }).status === 409
+			) {
+				setSuffixConflict(true);
+				setExportStarted(false);
+				return;
+			}
+
 			if (isSaveSuccessful(saveResult)) {
 				setExportDone(true);
 				return;
 			}
 		} catch (err) {
 			console.error("[ExportContext] Export failed:", err);
+			setExportStarted(false);
 		}
 
 		setUploadFailed(true);
@@ -264,9 +302,34 @@ export const ExportProvider: React.FC<ExportProviderProps> = ({
 						<DialogContentText>
 							Vill du spara en maskerad kopia?
 						</DialogContentText>
+						<TextField
+							autoFocus
+							margin="dense"
+							label="Suffix (valfritt)"
+							placeholder="t.ex. sekretess-borttaget"
+							helperText={
+								suffixConflict
+									? "En version med detta namn finns redan — välj ett annat suffix."
+									: suffixError || "Lämna tomt för automatisk tidsstämpel."
+							}
+							error={!!suffixError || suffixConflict}
+							fullWidth
+							variant="outlined"
+							value={suffixInput}
+							onChange={(e) => {
+								setSuffixInput(e.target.value);
+								setSuffixError(validateSuffix(e.target.value));
+								setSuffixConflict(false);
+							}}
+							slotProps={{ htmlInput: { maxLength: 100 } }}
+						/>
 					</DialogContent>
 					<DialogActions>
-						<Button onClick={startExport} variant="contained" autoFocus>
+						<Button
+							onClick={startExport}
+							variant="contained"
+							disabled={!!suffixError}
+						>
 							Spara
 						</Button>
 						<Button onClick={onClose}>Avbryt</Button>
