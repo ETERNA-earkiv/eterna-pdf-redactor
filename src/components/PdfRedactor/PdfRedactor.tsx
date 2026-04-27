@@ -723,7 +723,11 @@ function PdfRedactor(props: PdfRedactorProps) {
 		) {
 			return;
 		}
-
+		try {
+			await window.PDFRedactor.preSave();
+		} catch {
+			return;
+		}
 		exporter.current.confirmExport();
 	};
 

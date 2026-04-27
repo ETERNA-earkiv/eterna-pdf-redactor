@@ -6,7 +6,16 @@ All notable changes to **eterna-pdf-redactor** are documented here.
 
 ## [Unreleased]
 
+## [1.1.0] – 2026-04-24
 
+> **Note:** The suffix and pre-save callback features require Eterna v1.x or later.
+
+### Added
+- **`setPreSaveCallback`** – new `window.PDFRedactor` API method that lets the consumer register an async callback executed before the save dialog opens. If the callback rejects, the entire export flow is aborted without showing the dialog.
+- **Suffix field in save dialog** – users can now enter an optional suffix appended to the filename on export. The dialog handles name conflicts and forwards the suffix to the save callback.
+- **`suffix` parameter in save callback** – `setSaveCallback` signature extended with a third parameter `suffix: string` so the consumer can use the provided suffix during file handling.
+
+---
 
 ## [1.0.3] – 2026-04-13
 
